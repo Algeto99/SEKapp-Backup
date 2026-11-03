@@ -1979,6 +1979,81 @@ def _sin_arma(datos):
     return str(datos.get('porta_arma') or '').strip().lower() == 'no'
 
 
+def _cerrar_asignaciones_supervision(conn, inserted_ids, global_data, user_email):
+    """Cierra automáticamente las asignaciones pendientes de supervisión de puesto
+    al registrarse una nueva supervisión para la misma instalación o propiedad.
+
+    El nuevo formulario enviado constituye cumplimiento del atraso o hallazgo.
+    Se actualiza a 'Gestionado' con trazabilidad del consecutivo que lo normalizó.
+    """
+    if not inserted_ids or not global_data:
+        return
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
+        if not (cur.fetchone() or [None])[0]:
+            return
+
+        prop_id = global_data.get('id_propiedad')
+        cliente_inst = (global_data.get('cliente_instalacion') or '').strip()
+        first_id = inserted_ids[0]
+        nota_cierre = f'Cierre automático por supervisión #{first_id} registrada'
+        cierre_por = (user_email or '').strip()
+
+        cur.execute(
+            """
+            UPDATE asignaciones_hallazgo a
+               SET estado      = 'Gestionado',
+                   cerrado_en  = NOW(),
+                   cerrado_por = %s,
+                   nota        = CASE
+                                   WHEN COALESCE(NULLIF(TRIM(a.nota), ''), '') = '' THEN %s
+                                   ELSE a.nota || E'\\n— ' || %s
+                                 END
+             WHERE a.form_type = 'supervision_puesto'
+               AND LOWER(TRIM(COALESCE(a.estado, ''))) NOT IN
+                   ('gestionado', 'cerrado', 'closed', 'resuelto', 'resolved', 'anulado')
+               AND (
+                   EXISTS (
+                       SELECT 1 FROM supervision_puesto sp
+                        WHERE sp.id_supervision = a.record_id
+                          AND (
+                              (%s::int IS NOT NULL AND sp.id_propiedad = %s::int)
+                              OR (NULLIF(TRIM(%s), '') IS NOT NULL AND LOWER(TRIM(COALESCE(sp.cliente_instalacion, ''))) = LOWER(TRIM(%s)))
+                          )
+                   )
+                   OR (
+                       NULLIF(TRIM(%s), '') IS NOT NULL
+                       AND (
+                           a.hallazgo_ref ILIKE ('%%' || %s || '%%')
+                           OR a.hallazgo_titulo ILIKE ('%%' || %s || '%%')
+                       )
+                   )
+               )
+            """,
+            (
+                cierre_por,
+                nota_cierre,
+                nota_cierre,
+                prop_id, prop_id,
+                cliente_inst, cliente_inst,
+                cliente_inst, cliente_inst, cliente_inst,
+            )
+        )
+        cerradas = cur.rowcount
+        conn.commit()
+        if cerradas:
+            app_logger.info(f"Auto-gestionadas {cerradas} asignacion(es) de supervision por registro #{first_id}")
+            anotar(detalle={'asignaciones_supervision_cerradas': cerradas, 'supervision_id': first_id})
+    except Exception as e:
+        conn.rollback()
+        app_logger.warning(f"No se pudieron cerrar asignaciones de supervision desde registros {inserted_ids}: {e}")
+    finally:
+        if cur:
+            cur.close()
+
+
 @forms_bp.route('/submit_supervision_puesto', methods=['GET', 'POST'])
 @jwt_required()
 @dedup_form_submission
@@ -2098,6 +2173,7 @@ def submit_supervision_puesto():
         # columnas de la marca ya existan cuando se filtren.
         _marcar_geocerca(cur, 'supervision_puesto', global_data)
         column_cache = None # Optimization to fetch columns once if needed, but simple query is fine
+        inserted_ids = []
 
         for index, sup_data in supervisions_map.items():
             # Merge Global
@@ -2138,10 +2214,15 @@ def submit_supervision_puesto():
 
             cur.execute(sql, list(valid_row_data.values()))
             cur.execute("SELECT lastval()")
-            anotar_registro(cur.fetchone()[0])
+            _sup_id = cur.fetchone()[0]
+            anotar_registro(_sup_id)
+            inserted_ids.append(_sup_id)
 
         conn.commit()
         cur.close()
+
+        # Normalización y auto-cierre de asignaciones de supervisión por cumplimiento
+        _cerrar_asignaciones_supervision(conn, inserted_ids, global_data, user_email)
 
         return _form_success_response()
 

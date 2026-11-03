@@ -1414,6 +1414,19 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
              WHERE rv.id_visita = a.record_id
                AND LOWER(TRIM(COALESCE(rv.estado,''))) IN ('cerrado','closed','resuelto','resolved','cumplido')))
     """)
+    conds.append("""
+        NOT (a.form_type = 'supervision_puesto' AND EXISTS (
+            SELECT 1 FROM supervision_puesto sp_old
+            JOIN supervision_puesto sp_new ON (
+                (sp_old.id_propiedad IS NOT NULL AND sp_new.id_propiedad IS NOT NULL AND sp_new.id_propiedad = sp_old.id_propiedad)
+                OR (NULLIF(TRIM(sp_old.cliente_instalacion), '') IS NOT NULL
+                    AND LOWER(TRIM(COALESCE(sp_new.cliente_instalacion, ''))) = LOWER(TRIM(COALESCE(sp_old.cliente_instalacion, ''))))
+            )
+            WHERE sp_old.id_supervision = a.record_id
+              AND sp_new.id_supervision <> sp_old.id_supervision
+              AND (sp_new.fecha_hora > sp_old.fecha_hora OR sp_new.creado_en >= a.creado_en)
+        ))
+    """)
 
     # Alcance por Cliente/Propiedad. La tabla de asignaciones no guarda ninguna
     # de las dos, así que se cruza contra los ids del origen. Sin filtro no se
@@ -2094,6 +2107,17 @@ def cgeo_api_alertas():
         # ── REGLA 1: Puesto con atraso crítico de supervisión (> umbral según periodicidad) ──
         r1_conds, r1_params = _cp("id_propiedad")
         r1_conds.append(_cliente_real_sql())
+
+        # Horas desde última supervisión por id_propiedad (para no alertar si otro puesto de la misma propiedad ya se supervisó)
+        cur.execute(f"""
+            SELECT id_propiedad,
+                   EXTRACT(EPOCH FROM ({sql_ahora()} - MAX(fecha_hora))) / 3600 AS horas_prop
+            FROM supervision_puesto
+            {_where(r1_conds + ["id_propiedad IS NOT NULL"])}
+            GROUP BY id_propiedad
+        """, tuple(r1_params))
+        props_r1_horas = {row['id_propiedad']: float(row['horas_prop'] or 0) for row in cur.fetchall()}
+
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
@@ -2119,6 +2143,9 @@ def cgeo_api_alertas():
             umbral_h, umbral_label = _UMBRAL_R1_HORAS.get(per_puesto, (48.0, '48 h'))
             h = float(r["horas"] or 0)
             if h < umbral_h:
+                continue
+            prop_id = r.get("prop_id")
+            if prop_id is not None and prop_id in props_r1_horas and props_r1_horas[prop_id] < umbral_h:
                 continue
             puestos_r1.add(puesto)
             if r1_count >= 5:
@@ -2226,6 +2253,15 @@ def cgeo_api_alertas():
         r3_conds.append(_cliente_real_sql())
         r3_conds_hist = r3_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '7 days'"]
         r3_conds_reciente = r3_conds + [f"fecha_hora::date >= ({sql_hoy()} - 1)"]
+
+        # Propiedades supervisadas ayer u hoy (para no alertar si otro puesto de la propiedad ya se supervisó)
+        cur.execute(f"""
+            SELECT DISTINCT id_propiedad
+            FROM supervision_puesto
+            {_where(r3_conds_reciente + ["id_propiedad IS NOT NULL"])}
+        """, tuple(r3_params))
+        props_r3_recientes = {row['id_propiedad'] for row in cur.fetchall()}
+
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
@@ -2251,6 +2287,9 @@ def cgeo_api_alertas():
             if puesto in puestos_r1:
                 continue
             if _periodicidad_puesto(puesto, r.get('prop_id'), r.get('cust_id')) != 'diario':
+                continue
+            prop_id = r.get('prop_id')
+            if prop_id is not None and prop_id in props_r3_recientes:
                 continue
             h_r3 = float(r.get("horas") or 0)
             if h_r3 >= 48.0:
