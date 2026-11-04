@@ -538,19 +538,27 @@
             this.select.selectedIndex = index;
             this.select.dispatchEvent(new Event('change', { bubbles: true }));
             this._close();
-            // focus() dispatches synchronously, so the guard closes right after.
-            this._justCommitted = true;
-            this.input.focus();
-            this._justCommitted = false;
+            // focus() dispatches synchronously, only on desktop to prevent mobile keyboard pop/layout jump
+            if (!isTouchDevice()) {
+                this._justCommitted = true;
+                this.input.focus();
+                this._justCommitted = false;
+            }
         }
 
         _absorbGhostClick() {
             const absorb = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (typeof e.stopImmediatePropagation === 'function') {
+                    e.stopImmediatePropagation();
+                }
             };
-            document.addEventListener('click', absorb, true);
-            setTimeout(() => document.removeEventListener('click', absorb, true), 350);
+            const events = ['click', 'mousedown', 'mouseup', 'touchend', 'pointerdown', 'pointerup'];
+            events.forEach(ev => document.addEventListener(ev, absorb, true));
+            setTimeout(() => {
+                events.forEach(ev => document.removeEventListener(ev, absorb, true));
+            }, 500);
         }
 
         _updateValidity() {
@@ -1181,6 +1189,7 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
 
     function initPuestoFields(propertySelect, properties) {
         const byProperty = buildPuestoIndex(properties);
+        window.secappPuestosByProperty = byProperty;
         const fields = [];
 
         function enhanceAll() {

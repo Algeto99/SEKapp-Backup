@@ -1366,7 +1366,79 @@ def api_supervision_ultima_dotacion():
                     'detalles_puestos': tr.get('detalles_puestos') or '',
                 }
 
-        return jsonify({'disponible': True, 'dotacion': dotacion, 'turnos': turnos})
+        # Pool de guardias recientes asignados a esta propiedad (para rotación de puestos y turnos)
+        cur.execute(f"""
+            SELECT DISTINCT ON (TRIM(COALESCE(documento_guardia, '')))
+                   nombre_guardia, numero_empleado, documento_guardia,
+                   tiempo_en_puesto, licencia_portar_arma, detalles_puestos, horario_servicio
+            FROM supervision_puesto
+            WHERE {' AND '.join(conds)}
+              AND documento_guardia IS NOT NULL AND TRIM(documento_guardia) != ''
+            ORDER BY TRIM(COALESCE(documento_guardia, '')), fecha_hora DESC NULLS LAST, id_supervision DESC
+            LIMIT 10
+        """, tuple(params))
+        guardias_pool = []
+        for gr in cur.fetchall():
+            nom = (gr.get('nombre_guardia') or '').strip()
+            doc = (gr.get('documento_guardia') or '').strip()
+            if nom and doc:
+                guardias_pool.append({
+                    'nombre_guardia': nom,
+                    'numero_empleado': gr.get('numero_empleado') or '',
+                    'documento_guardia': doc,
+                    'tiempo_en_puesto': gr.get('tiempo_en_puesto') or '',
+                    'licencia_portar_arma': gr.get('licencia_portar_arma') or '',
+                    'detalles_puestos': gr.get('detalles_puestos') or '',
+                    'horario_servicio': gr.get('horario_servicio') or '',
+                })
+
+        # Dotaciones históricas registradas por puesto específico de esta propiedad
+        cur.execute(f"""
+            SELECT DISTINCT ON (LOWER(TRIM(COALESCE(detalles_puestos, ''))))
+                   id_supervision, fecha_hora, detalles_puestos,
+                   tipo_servicio, modalidad_servicio, horario_servicio,
+                   hora_entrada, hora_salida,
+                   porta_arma, tipo_arma, serie_arma, matricula_arma, cantidad_municion,
+                   fecha_vencimiento_permiso_porte, fecha_ultimo_mtto_arma,
+                   radio_asignado_serial, marca_radio, tipo_radio, fecha_ultimo_mtto_radio
+            FROM supervision_puesto
+            WHERE {' AND '.join(conds)}
+              AND detalles_puestos IS NOT NULL AND TRIM(detalles_puestos) != ''
+            ORDER BY LOWER(TRIM(COALESCE(detalles_puestos, ''))), fecha_hora DESC NULLS LAST, id_supervision DESC
+        """, tuple(params))
+        dotaciones_puestos = {}
+        for dp in cur.fetchall():
+            p_name = (dp.get('detalles_puestos') or '').strip()
+            p_key = p_name.lower()
+            if p_key:
+                dotaciones_puestos[p_key] = {
+                    'id_supervision': dp['id_supervision'],
+                    'detalles_puestos': p_name,
+                    'tipo_servicio': dp.get('tipo_servicio') or '',
+                    'modalidad_servicio': dp.get('modalidad_servicio') or '',
+                    'horario_servicio': dp.get('horario_servicio') or '',
+                    'hora_entrada': _fmt_time(dp.get('hora_entrada')),
+                    'hora_salida': _fmt_time(dp.get('hora_salida')),
+                    'porta_arma': dp.get('porta_arma') or '',
+                    'tipo_arma': dp.get('tipo_arma') or '',
+                    'serie_arma': dp.get('serie_arma') or '',
+                    'matricula_arma': dp.get('matricula_arma') or '',
+                    'cantidad_municion': dp.get('cantidad_municion') or '',
+                    'fecha_vencimiento_permiso_porte': _fmt_date(dp.get('fecha_vencimiento_permiso_porte')),
+                    'fecha_ultimo_mtto_arma': _fmt_date(dp.get('fecha_ultimo_mtto_arma')),
+                    'radio_asignado_serial': dp.get('radio_asignado_serial') or '',
+                    'marca_radio': dp.get('marca_radio') or '',
+                    'tipo_radio': dp.get('tipo_radio') or '',
+                    'fecha_ultimo_mtto_radio': _fmt_date(dp.get('fecha_ultimo_mtto_radio')),
+                }
+
+        return jsonify({
+            'disponible': True,
+            'dotacion': dotacion,
+            'dotaciones_puestos': dotaciones_puestos,
+            'turnos': turnos,
+            'guardias_pool': guardias_pool
+        })
     except Exception as e:
         app_logger.error(f"api_supervision_ultima_dotacion error: {e}", exc_info=True)
         return jsonify({'disponible': False, 'dotacion': None}), 200

@@ -374,6 +374,11 @@
                             <input type="date" name="fecha_ultimo_mtto_arma" class="form-input" tabindex="-1" readonly>
                         </div>
                     </div>
+                    <div class="md:col-span-2 pt-3 border-t border-gray-700/60">
+                        <h4 class="text-sm font-semibold text-gray-200 flex items-center gap-1.5 mb-1">
+                            <span>📻</span> Equipamiento de Comunicación (Radio)
+                        </h4>
+                    </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
                         <input type="text" inputmode="text" name="radio_asignado_serial" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
@@ -697,6 +702,8 @@
     window.secappTurnosHelper = (function () {
         const TURNOS_KEY = 'secapp:supervision:turnos';
         const DOTACION_PREFIX = 'secapp:supervision:dotacion:';
+        const DOTACION_PUESTOS_PREFIX = 'secapp:supervision:dotaciones_puestos:';
+        const POOL_PREFIX = 'secapp:supervision:pool:';
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -721,6 +728,24 @@
             }
         }
 
+        function getDotacionesPuestosCache(propId) {
+            if (!propId) return {};
+            try {
+                return JSON.parse(localStorage.getItem(DOTACION_PUESTOS_PREFIX + String(propId)) || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveDotacionesPuestosCache(propId, map) {
+            if (!propId) return;
+            try {
+                localStorage.setItem(DOTACION_PUESTOS_PREFIX + String(propId), JSON.stringify(map || {}));
+            } catch (e) {
+                console.warn('[secappTurnosHelper] Error guardando dotaciones por puesto:', e);
+            }
+        }
+
         function normalizeKey(str) {
             return String(str || '')
                 .normalize('NFD')
@@ -737,9 +762,48 @@
             'mixto': { hora_entrada: '08:00', hora_salida: '17:00' }
         };
 
+        function getPoolCache(propId) {
+            if (!propId) return [];
+            try {
+                return JSON.parse(localStorage.getItem(POOL_PREFIX + String(propId)) || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function savePoolCache(propId, list) {
+            if (!propId) return;
+            try {
+                localStorage.setItem(POOL_PREFIX + String(propId), JSON.stringify(list || []));
+            } catch (e) {
+                console.warn('[secappTurnosHelper] Error guardando pool de guardias:', e);
+            }
+        }
+
+        function getAssignedGuards(excludeIndex) {
+            const assigned = {
+                docs: new Set(),
+                names: new Set()
+            };
+            const blocks = document.querySelectorAll('#supervisionsContainer .supervision-block');
+            blocks.forEach(blk => {
+                const idx = blk.dataset.index;
+                if (excludeIndex !== undefined && excludeIndex !== null && String(idx) === String(excludeIndex)) {
+                    return;
+                }
+                const nomInput = blk.querySelector('[name$="[nombre_guardia]"]');
+                const docInput = blk.querySelector('[name$="[documento_guardia]"]');
+                const nom = nomInput ? normalizeKey(nomInput.value) : '';
+                const doc = docInput ? normalizeKey(docInput.value) : '';
+                if (nom) assigned.names.add(nom);
+                if (doc) assigned.docs.add(doc);
+            });
+            return assigned;
+        }
+
         return {
             escapeHtml,
-            learnFromResponse(propId, turnosServer, dotacionServer) {
+            learnFromResponse(propId, turnosServer, dotacionServer, guardiasPoolServer, dotacionesPuestosServer) {
                 if (!propId) return;
                 const cache = getTurnosCache();
                 const pId = String(propId);
@@ -747,7 +811,21 @@
                 if (dotacionServer) {
                     try {
                         localStorage.setItem(DOTACION_PREFIX + pId, JSON.stringify(dotacionServer));
+                        window.secappCurrentDotacion = dotacionServer;
                     } catch (e) {}
+                }
+
+                if (dotacionesPuestosServer && typeof dotacionesPuestosServer === 'object') {
+                    window.secappDotacionesPuestos = dotacionesPuestosServer;
+                    try {
+                        const map = getDotacionesPuestosCache(pId);
+                        Object.assign(map, dotacionesPuestosServer);
+                        saveDotacionesPuestosCache(pId, map);
+                    } catch (e) {}
+                }
+
+                if (Array.isArray(guardiasPoolServer)) {
+                    savePoolCache(pId, guardiasPoolServer);
                 }
 
                 if (turnosServer && typeof turnosServer === 'object') {
@@ -776,6 +854,144 @@
                     });
                     saveTurnosCache(cache);
                 }
+
+                this.updateAllBlockSuggestions();
+                this.updateNextPostInvitations();
+            },
+
+            saveDotacionPuesto(propId, puesto, dot) {
+                if (!propId || !puesto || !dot) return;
+                const pId = String(propId);
+                const pNorm = normalizeKey(puesto);
+                if (!pNorm) return;
+                try {
+                    const map = getDotacionesPuestosCache(pId);
+                    map[pNorm] = Object.assign({}, dot, { detalles_puestos: puesto, updated_at: Date.now() });
+                    saveDotacionesPuestosCache(pId, map);
+                    if (!window.secappDotacionesPuestos) window.secappDotacionesPuestos = {};
+                    window.secappDotacionesPuestos[pNorm] = map[pNorm];
+                } catch (e) {
+                    console.warn('[secappTurnosHelper] Error guardando dotación por puesto:', e);
+                }
+            },
+
+            getDotacionPuesto(propId, puesto) {
+                if (!propId || !puesto) return null;
+                const pId = String(propId);
+                const pNorm = normalizeKey(puesto);
+                if (!pNorm) return null;
+                if (window.secappDotacionesPuestos && window.secappDotacionesPuestos[pNorm]) {
+                    return window.secappDotacionesPuestos[pNorm];
+                }
+                const map = getDotacionesPuestosCache(pId);
+                return map[pNorm] || null;
+            },
+
+            mostrarAvisoDotacionPuesto(block, index, puesto, dot) {
+                const noticeWrap = document.getElementById(`dotacionPuestoNotice_${index}`);
+                if (!noticeWrap || !dot) return;
+                const tieneArma = dot.porta_arma === 'Si' && (dot.serie_arma || dot.tipo_arma);
+                const armaTxt = tieneArma
+                    ? `Arma: <strong class="text-white">${escapeHtml(dot.tipo_arma || '')} ${escapeHtml(dot.serie_arma || '')}</strong>`
+                    : '<span class="text-gray-300">Puesto sin arma</span>';
+                const radioTxt = dot.radio_asignado_serial
+                    ? ` · Radio: <strong class="text-white">${escapeHtml(dot.radio_asignado_serial)}</strong>`
+                    : '';
+                noticeWrap.innerHTML = `
+                    <div class="p-3 rounded-xl bg-gradient-to-r from-emerald-950/70 via-gray-900 to-gray-800 border border-emerald-500/40 text-xs text-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse"></span>
+                            <span><strong>${escapeHtml(puesto)}:</strong> ${armaTxt}${radioTxt}</span>
+                            <span class="text-[11px] text-gray-400">· Editable si hubo relevo o cambio de equipo</span>
+                        </div>
+                        <div class="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                            <button type="button" class="btn-limpiar-equipos-bloque text-xs text-gray-400 hover:text-white underline cursor-pointer" title="Vaciar únicamente los campos de arma y radio de este puesto">
+                                Vaciar equipos
+                            </button>
+                            <button type="button" class="text-gray-400 hover:text-white px-1" onclick="this.closest('#dotacionPuestoNotice_${index}').innerHTML=''">✕</button>
+                        </div>
+                    </div>
+                `;
+                const btnVaciar = noticeWrap.querySelector('.btn-limpiar-equipos-bloque');
+                if (btnVaciar) {
+                    btnVaciar.addEventListener('click', () => {
+                        const fields = [
+                            'porta_arma', 'tipo_arma', 'serie_arma', 'matricula_arma', 'cantidad_municion',
+                            'fecha_vencimiento_permiso_porte', 'fecha_ultimo_mtto_arma',
+                            'radio_asignado_serial', 'marca_radio', 'tipo_radio', 'fecha_ultimo_mtto_radio'
+                        ];
+                        fields.forEach(f => {
+                            const el = block.querySelector(`[name$="[${f}]"]`);
+                            if (el) {
+                                el.value = '';
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        });
+                        const armaDiv = document.getElementById(`armaFields_${index}`);
+                        if (armaDiv) armaDiv.classList.add('hidden');
+                        noticeWrap.innerHTML = `
+                            <div class="p-2.5 rounded-lg bg-gray-900/80 border border-gray-700 text-xs text-gray-300 flex items-center justify-between gap-2 shadow">
+                                <span>Equipos vaciados. Puede ingresar manualmente la dotación de este puesto.</span>
+                                <button type="button" class="text-gray-400 hover:text-white px-1" onclick="this.parentElement.remove()">✕</button>
+                            </div>
+                        `;
+                    });
+                }
+            },
+
+            mostrarAvisoPuestoSinDotacion(block, index, puesto) {
+                const noticeWrap = document.getElementById(`dotacionPuestoNotice_${index}`);
+                if (!noticeWrap) return;
+                noticeWrap.innerHTML = `
+                    <div class="p-2.5 rounded-lg bg-gray-900/80 border border-gray-700 text-xs text-gray-300 flex items-center justify-between gap-2 shadow">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-blue-400">ℹ️</span>
+                            <span>Puesto <strong>${escapeHtml(puesto)}</strong>: Sin dotación previa registrada. Ingrese el arma y radio asignados (se guardarán para la próxima).</span>
+                        </div>
+                        <button type="button" class="text-[11px] text-gray-400 hover:text-white px-1" onclick="this.closest('#dotacionPuestoNotice_${index}').innerHTML=''">✕</button>
+                    </div>
+                `;
+            },
+
+            onPuestoChanged(block, index) {
+                if (!block) return;
+                const propSelect = document.getElementById('id_propiedad');
+                const propId = propSelect ? propSelect.value : '';
+                if (!propId) return;
+
+                const puestoInput = block.querySelector('[name$="[detalles_puestos]"]');
+                const puesto = puestoInput ? puestoInput.value.trim() : '';
+                const noticeWrap = document.getElementById(`dotacionPuestoNotice_${index}`);
+
+                if (!puesto) {
+                    if (noticeWrap) noticeWrap.innerHTML = '';
+                    return;
+                }
+
+                const dotPost = this.getDotacionPuesto(propId, puesto);
+                if (dotPost) {
+                    this.aplicarEquipamientoABloque(block, index, dotPost);
+                    this.mostrarAvisoDotacionPuesto(block, index, puesto, dotPost);
+                } else {
+                    // Puesto nuevo o sin dotación previa: limpiar campos de armas y radios para evitar transferencias no deseadas entre puestos
+                    const fields = [
+                        'porta_arma', 'tipo_arma', 'serie_arma', 'matricula_arma', 'cantidad_municion',
+                        'fecha_vencimiento_permiso_porte', 'fecha_ultimo_mtto_arma',
+                        'radio_asignado_serial', 'marca_radio', 'tipo_radio', 'fecha_ultimo_mtto_radio'
+                    ];
+                    fields.forEach(f => {
+                        const el = block.querySelector(`[name$="[${f}]"]`);
+                        if (el) {
+                            el.value = '';
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    });
+                    const armaDiv = document.getElementById(`armaFields_${index}`);
+                    if (armaDiv) armaDiv.classList.add('hidden');
+                    this.mostrarAvisoPuestoSinDotacion(block, index, puesto);
+                }
             },
 
             saveLearnedTurno(info) {
@@ -802,6 +1018,27 @@
                 }
                 cache[`${pId}_${normTurno}`] = item;
                 saveTurnosCache(cache);
+
+                if (info.nombre_guardia && info.documento_guardia) {
+                    const pool = getPoolCache(pId);
+                    const normDoc = normalizeKey(info.documento_guardia);
+                    const idx = pool.findIndex(g => normalizeKey(g.documento_guardia) === normDoc);
+                    const entry = {
+                        nombre_guardia: info.nombre_guardia,
+                        numero_empleado: info.numero_empleado || '',
+                        documento_guardia: info.documento_guardia,
+                        tiempo_en_puesto: info.tiempo_en_puesto || '',
+                        licencia_portar_arma: info.licencia_portar_arma || '',
+                        detalles_puestos: info.puesto || '',
+                        horario_servicio: info.turno || ''
+                    };
+                    if (idx >= 0) {
+                        pool[idx] = entry;
+                    } else {
+                        pool.unshift(entry);
+                    }
+                    savePoolCache(pId, pool);
+                }
             },
 
             getTurnoData(propId, puesto, turno) {
@@ -838,10 +1075,13 @@
                 if (!propId) return;
                 try {
                     const raw = localStorage.getItem(DOTACION_PREFIX + String(propId));
-                    if (raw) {
-                        const dot = JSON.parse(raw);
-                        if (dot && typeof aplicarFn === 'function') {
-                            aplicarFn(dot);
+                    const mapPuestos = getDotacionesPuestosCache(String(propId));
+                    window.secappDotacionesPuestos = mapPuestos;
+                    if (raw || Object.keys(mapPuestos).length > 0) {
+                        const dot = raw ? JSON.parse(raw) : null;
+                        if (typeof aplicarFn === 'function') {
+                            if (dot) window.secappCurrentDotacion = dot;
+                            aplicarFn(dot, mapPuestos);
                             if (wrap) {
                                 const badge = wrap.querySelector('#badgeEquipamientoPrecargado');
                                 if (badge) {
@@ -858,8 +1098,90 @@
                 }
             },
 
+            getStoredDotacion(propId) {
+                if (!propId) return null;
+                try {
+                    const raw = localStorage.getItem(DOTACION_PREFIX + String(propId));
+                    return raw ? JSON.parse(raw) : null;
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            aplicarEquipamientoABloque(block, index, dot) {
+                if (!block || !dot || window.EDIT_MODE) return;
+                const prefix = `supervisions[${index}]`;
+
+                function setFieldValue(name, value) {
+                    if (value === undefined || value === null || value === '') return;
+                    const selector = `[name="${prefix}[${name}]"]`;
+                    const el = block.querySelector(selector);
+                    if (el) {
+                        el.value = value;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+
+                // 1. Datos Operativos del Puesto
+                // Solo establecer puesto si es bloque 0 y no tiene valor previo (los bloques posteriores conservan su puesto específico asignado)
+                const puestoInput = block.querySelector(`[name="${prefix}[detalles_puestos]"]`);
+                if (puestoInput && !puestoInput.value && dot.detalles_puestos && String(index) === '0') {
+                    setFieldValue('detalles_puestos', dot.detalles_puestos);
+                }
+                if (dot.horario_servicio) setFieldValue('horario_servicio', dot.horario_servicio);
+                if (dot.tipo_servicio) setFieldValue('tipo_servicio', dot.tipo_servicio);
+                if (dot.modalidad_servicio) setFieldValue('modalidad_servicio', dot.modalidad_servicio);
+
+                // Horas de turno precargadas/heredadas
+                if (dot.hora_entrada) {
+                    const elEntrada = block.querySelector(`[name="${prefix}[hora_entrada]"]`);
+                    if (elEntrada && !elEntrada.value) {
+                        elEntrada.value = dot.hora_entrada;
+                        elEntrada.dataset.autoFilled = '1';
+                        elEntrada.dispatchEvent(new Event('input', { bubbles: true }));
+                        elEntrada.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+                if (dot.hora_salida) {
+                    const elSalida = block.querySelector(`[name="${prefix}[hora_salida]"]`);
+                    if (elSalida && !elSalida.value) {
+                        elSalida.value = dot.hora_salida;
+                        elSalida.dataset.autoFilled = '1';
+                        elSalida.dispatchEvent(new Event('input', { bubbles: true }));
+                        elSalida.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+
+                // 2. Equipamiento persistente: Arma y permisos del puesto
+                if (dot.porta_arma) {
+                    setFieldValue('porta_arma', dot.porta_arma);
+                    const fields = document.getElementById(`armaFields_${index}`);
+                    if (dot.porta_arma === 'Si') {
+                        if (fields) fields.classList.remove('hidden');
+                        setFieldValue('tipo_arma', dot.tipo_arma);
+                        setFieldValue('serie_arma', dot.serie_arma);
+                        setFieldValue('matricula_arma', dot.matricula_arma);
+                        setFieldValue('cantidad_municion', dot.cantidad_municion);
+                        setFieldValue('fecha_vencimiento_permiso_porte', dot.fecha_vencimiento_permiso_porte);
+                        setFieldValue('fecha_ultimo_mtto_arma', dot.fecha_ultimo_mtto_arma);
+                    } else if (dot.porta_arma === 'No') {
+                        if (fields) fields.classList.add('hidden');
+                    }
+                }
+
+                // 3. Equipamiento persistente: Radio del puesto
+                if (dot.radio_asignado_serial) {
+                    setFieldValue('radio_asignado_serial', dot.radio_asignado_serial);
+                    setFieldValue('marca_radio', dot.marca_radio);
+                    setFieldValue('tipo_radio', dot.tipo_radio);
+                    setFieldValue('fecha_ultimo_mtto_radio', dot.fecha_ultimo_mtto_radio);
+                }
+            },
+
             onShiftChanged(block, index) {
                 if (!block) return;
+                const self = this;
                 const propSelect = document.getElementById('id_propiedad');
                 const propId = propSelect ? propSelect.value : '';
                 const horarioSel = block.querySelector('[name$="[horario_servicio]"]');
@@ -910,7 +1232,7 @@
                     }
                 }
 
-                // 2. Manejo de Sugerencia Inteligente de Guardia
+                // 2. Manejo de Sugerencia Inteligente de Guardia con Exclusión Mutua Multi-Puesto
                 if (!sugWrap) return;
 
                 const nombreInput = block.querySelector('[name$="[nombre_guardia]"]');
@@ -920,123 +1242,233 @@
                 const licArmaInput = block.querySelector('[name$="[licencia_portar_arma]"]');
 
                 // Si ya había un guardia auto-cargado por sugerencia previa y cambió de turno,
-                // limpiar para que no queden datos cruzados de turnos distintos
-                if (nombreInput && nombreInput.dataset.autoFilledGuardia === '1') {
+                // limpiar para no cruzar información
+                if (nombreInput && nombreInput.dataset.autoFilledGuardia === '1' && nombreInput.dataset.lastAutoTurno && nombreInput.dataset.lastAutoTurno !== turno) {
                     nombreInput.value = '';
                     delete nombreInput.dataset.autoFilledGuardia;
+                    delete nombreInput.dataset.lastAutoTurno;
                     if (numEmpInput) { numEmpInput.value = ''; delete numEmpInput.dataset.autoFilledGuardia; }
                     if (docInput) { docInput.value = ''; delete docInput.dataset.autoFilledGuardia; }
                     if (tiempoSelect) { tiempoSelect.value = ''; delete tiempoSelect.dataset.autoFilledGuardia; }
                     if (licArmaInput) { licArmaInput.value = ''; delete licArmaInput.dataset.autoFilledGuardia; }
                 }
 
-                // Si el usuario ya escribió manualmente el nombre de otro guardia, respetarlo y no sugerir
+                // Si el usuario ya escribió manualmente el nombre de otro oficial, respetarlo y no sugerir
                 if (nombreInput && nombreInput.value && !nombreInput.dataset.autoFilledGuardia) {
                     sugWrap.innerHTML = '';
                     return;
                 }
 
-                if (!data.nombre_guardia) {
+                // Si actualmente ya tiene datos aplicados mediante sugerencia, mostrar el banner de estado aplicado
+                if (nombreInput && nombreInput.dataset.autoFilledGuardia === '1' && nombreInput.value) {
+                    renderAppliedBanner(nombreInput.value);
+                    return;
+                }
+
+                function renderAppliedBanner(appliedName) {
+                    sugWrap.innerHTML = `
+                        <div class="p-2.5 px-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-xs text-emerald-300 flex items-center justify-between shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="text-emerald-400 font-bold">✓</span>
+                                <span>Oficial asignado: <strong class="text-white">${escapeHtml(appliedName)}</strong></span>
+                            </div>
+                            <button type="button" class="btn-deshacer-guardia text-xs text-gray-300 hover:text-white underline hover:no-underline ml-2 transition">
+                                ↺ Deshacer / Cambiar
+                            </button>
+                        </div>
+                    `;
+                    const btnDeshacer = sugWrap.querySelector('.btn-deshacer-guardia');
+                    if (btnDeshacer) {
+                        btnDeshacer.addEventListener('click', () => {
+                            if (nombreInput) { nombreInput.value = ''; delete nombreInput.dataset.autoFilledGuardia; delete nombreInput.dataset.lastAutoTurno; nombreInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                            if (numEmpInput) { numEmpInput.value = ''; delete numEmpInput.dataset.autoFilledGuardia; numEmpInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                            if (docInput) { docInput.value = ''; delete docInput.dataset.autoFilledGuardia; docInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                            if (tiempoSelect) { tiempoSelect.value = ''; delete tiempoSelect.dataset.autoFilledGuardia; tiempoSelect.dispatchEvent(new Event('change', { bubbles: true })); }
+                            if (licArmaInput) { licArmaInput.value = ''; delete licArmaInput.dataset.autoFilledGuardia; licArmaInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                            const lblSig = document.getElementById(`labelFirmaGuardia_${index}`);
+                            if (lblSig) lblSig.textContent = 'Firma del Guardia';
+                            self.onShiftChanged(block, index);
+                            self.updateAllBlockSuggestions(index);
+                            if (nombreInput) nombreInput.focus();
+                        });
+                    }
+                }
+
+                function applyGuard(guardObj) {
+                    if (!guardObj) return;
+                    if (nombreInput) {
+                        nombreInput.value = guardObj.nombre_guardia || '';
+                        nombreInput.dataset.autoFilledGuardia = '1';
+                        nombreInput.dataset.lastAutoTurno = turno;
+                        nombreInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        nombreInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (numEmpInput && guardObj.numero_empleado) {
+                        numEmpInput.value = guardObj.numero_empleado;
+                        numEmpInput.dataset.autoFilledGuardia = '1';
+                        numEmpInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        numEmpInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (docInput && guardObj.documento_guardia) {
+                        docInput.value = guardObj.documento_guardia;
+                        docInput.dataset.autoFilledGuardia = '1';
+                        docInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        docInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (tiempoSelect && guardObj.tiempo_en_puesto) {
+                        tiempoSelect.value = guardObj.tiempo_en_puesto;
+                        tiempoSelect.dataset.autoFilledGuardia = '1';
+                        tiempoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (licArmaInput && guardObj.licencia_portar_arma) {
+                        licArmaInput.value = guardObj.licencia_portar_arma;
+                        licArmaInput.dataset.autoFilledGuardia = '1';
+                        licArmaInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        licArmaInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    const lblSig = document.getElementById(`labelFirmaGuardia_${index}`);
+                    if (lblSig) {
+                        lblSig.textContent = guardObj.nombre_guardia ? `Firma del Guardia (${guardObj.nombre_guardia})` : 'Firma del Guardia';
+                    }
+                    renderAppliedBanner(guardObj.nombre_guardia);
+                    self.updateAllBlockSuggestions(index);
+                }
+
+                // Obtener guardias asignados en OTROS bloques (Exclusión Mutua)
+                const assigned = getAssignedGuards(index);
+
+                // Candidato habitual de este puesto/turno
+                const hasHabitual = !!(data && data.nombre_guardia);
+                const habitualAssigned = hasHabitual && (
+                    assigned.names.has(normalizeKey(data.nombre_guardia)) ||
+                    (data.documento_guardia && assigned.docs.has(normalizeKey(data.documento_guardia)))
+                );
+
+                // Pool general de guardias de esta propiedad
+                const pool = getPoolCache(propId);
+                const availablePool = pool.filter(g => {
+                    const n = normalizeKey(g.nombre_guardia);
+                    const d = normalizeKey(g.documento_guardia);
+                    if (!n && !d) return false;
+                    if (assigned.names.has(n) || (d && assigned.docs.has(d))) return false;
+                    if (hasHabitual && !habitualAssigned && (n === normalizeKey(data.nombre_guardia) || (d && d === normalizeKey(data.documento_guardia)))) {
+                        return false; // Ya es el candidato habitual principal
+                    }
+                    return true;
+                });
+
+                // Ordenar disponibles: primero los que coincidan con este turno o puesto
+                availablePool.sort((a, b) => {
+                    const aTurnoMatch = normalizeKey(a.horario_servicio) === normalizeKey(turno) ? 1 : 0;
+                    const bTurnoMatch = normalizeKey(b.horario_servicio) === normalizeKey(turno) ? 1 : 0;
+                    const aPuestoMatch = puesto && normalizeKey(a.detalles_puestos) === normalizeKey(puesto) ? 1 : 0;
+                    const bPuestoMatch = puesto && normalizeKey(b.detalles_puestos) === normalizeKey(puesto) ? 1 : 0;
+                    return (bTurnoMatch + bPuestoMatch) - (aTurnoMatch + aPuestoMatch);
+                });
+
+                // Renderizar interfaz según disponibilidad
+                if (hasHabitual && !habitualAssigned) {
+                    const nombreCompleto = data.nombre_guardia;
+                    const primerNombre = nombreCompleto.split(' ')[0] || 'oficial';
+                    const infoExtra = [
+                        data.documento_guardia ? `Cédula: <strong>${escapeHtml(data.documento_guardia)}</strong>` : '',
+                        data.numero_empleado ? `Carnet: <strong>${escapeHtml(data.numero_empleado)}</strong>` : '',
+                        data.tiempo_en_puesto ? `Antigüedad: <strong>${escapeHtml(data.tiempo_en_puesto)} meses</strong>` : ''
+                    ].filter(Boolean).join(' · ');
+
+                    sugWrap.innerHTML = `
+                        <div class="sugerencia-guardia-card p-3 rounded-xl bg-gradient-to-r from-blue-950/70 via-gray-900 to-gray-800 border border-blue-500/40 text-xs text-blue-200 shadow-md">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex items-start gap-2.5">
+                                    <span class="text-base select-none">💡</span>
+                                    <div>
+                                        <div class="font-semibold text-blue-100 text-sm">
+                                            ¿Deseas usar los datos habituales de este turno?
+                                        </div>
+                                        <div class="text-gray-300 mt-1 leading-relaxed">
+                                            Último registrado en turno <span class="capitalize font-semibold text-blue-300">${escapeHtml(turno)}</span>:
+                                            <strong class="text-white text-sm tracking-wide ml-1">${escapeHtml(nombreCompleto)}</strong>
+                                            ${infoExtra ? `<div class="text-gray-400 text-[11px] mt-0.5">${infoExtra}</div>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-dismiss-sug text-gray-400 hover:text-white p-1 text-sm leading-none" title="Descartar">✕</button>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-gray-700/60 flex items-center gap-2 flex-wrap">
+                                <button type="button" class="btn-aplicar-guardia px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                                    <span>✓</span> Usar datos de ${escapeHtml(primerNombre)}
+                                </button>
+                                <button type="button" class="btn-otro-guardia px-3 py-1.5 rounded-lg bg-gray-700/90 hover:bg-gray-700 text-gray-300 hover:text-white text-xs border border-gray-600 transition active:scale-95">
+                                    ✕ No, es otro oficial
+                                </button>
+                            </div>
+                            ${availablePool.length > 0 ? `
+                                <div class="mt-2.5 pt-2 border-t border-gray-700/50 flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[11px] text-gray-400 mr-1">Otros disponibles:</span>
+                                    ${availablePool.slice(0, 4).map((g, gIdx) => `
+                                        <button type="button" class="btn-chip-guardia px-2.5 py-1 rounded-full bg-gray-800 hover:bg-gray-700 text-blue-200 border border-blue-500/30 text-[11px] transition active:scale-95" data-pool-idx="${gIdx}">
+                                            ${escapeHtml(g.nombre_guardia)}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    const btnAplicar = sugWrap.querySelector('.btn-aplicar-guardia');
+                    if (btnAplicar) {
+                        btnAplicar.addEventListener('click', () => applyGuard(data));
+                    }
+                } else if (availablePool.length > 0) {
+                    sugWrap.innerHTML = `
+                        <div class="sugerencia-guardia-card p-3 rounded-xl bg-gradient-to-r from-blue-950/70 via-gray-900 to-gray-800 border border-blue-500/40 text-xs text-blue-200 shadow-md">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex items-start gap-2.5">
+                                    <span class="text-base select-none">👥</span>
+                                    <div>
+                                        <div class="font-semibold text-blue-100 text-sm">
+                                            Oficiales disponibles en esta instalación
+                                        </div>
+                                        <div class="text-gray-300 mt-1 leading-relaxed text-[11px]">
+                                            ${hasHabitual && habitualAssigned ? `El oficial habitual de este turno (<strong class="text-blue-300">${escapeHtml(data.nombre_guardia)}</strong>) ya fue asignado a otro puesto. Seleccione uno de los disponibles:` : 'Seleccione un oficial para autocompletar su información de servicio:'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-dismiss-sug text-gray-400 hover:text-white p-1 text-sm leading-none" title="Descartar">✕</button>
+                            </div>
+                            <div class="mt-2.5 pt-2 border-t border-gray-700/60 flex items-center gap-1.5 flex-wrap">
+                                ${availablePool.slice(0, 5).map((g, gIdx) => `
+                                    <button type="button" class="btn-chip-guardia px-2.5 py-1.5 rounded-lg bg-blue-950/80 hover:bg-blue-900 text-blue-200 border border-blue-500/40 text-xs font-medium transition active:scale-95 flex items-center gap-1.5" data-pool-idx="${gIdx}">
+                                        <span>👤</span> ${escapeHtml(g.nombre_guardia)}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else if (hasHabitual && habitualAssigned) {
+                    sugWrap.innerHTML = `
+                        <div class="p-2.5 px-3 rounded-lg bg-gray-800/80 border border-gray-700 text-xs text-gray-300 flex items-center justify-between shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-400 select-none">ℹ️</span>
+                                <span>El oficial habitual (<strong class="text-white">${escapeHtml(data.nombre_guardia)}</strong>) ya está asignado a otro puesto. Puede ingresar manualmente los datos del nuevo oficial.</span>
+                            </div>
+                            <button type="button" class="btn-dismiss-sug text-gray-400 hover:text-white p-1 text-sm leading-none" title="Ocultar">✕</button>
+                        </div>
+                    `;
+                } else {
                     sugWrap.innerHTML = '';
                     return;
                 }
 
-                const nombreCompleto = data.nombre_guardia;
-                const primerNombre = nombreCompleto.split(' ')[0] || 'oficial';
-                const infoExtra = [
-                    data.documento_guardia ? `Cédula: <strong>${escapeHtml(data.documento_guardia)}</strong>` : '',
-                    data.numero_empleado ? `Carnet: <strong>${escapeHtml(data.numero_empleado)}</strong>` : '',
-                    data.tiempo_en_puesto ? `Antigüedad: <strong>${escapeHtml(data.tiempo_en_puesto)} meses</strong>` : ''
-                ].filter(Boolean).join(' · ');
-
-                sugWrap.innerHTML = `
-                    <div class="sugerencia-guardia-card p-3 rounded-xl bg-gradient-to-r from-blue-950/70 via-gray-900 to-gray-800 border border-blue-500/40 text-xs text-blue-200 shadow-md">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="flex items-start gap-2.5">
-                                <span class="text-base select-none">💡</span>
-                                <div>
-                                    <div class="font-semibold text-blue-100 text-sm">
-                                        ¿Deseas usar los datos habituales de este turno?
-                                    </div>
-                                    <div class="text-gray-300 mt-1 leading-relaxed">
-                                        Último registrado en turno <span class="capitalize font-semibold text-blue-300">${escapeHtml(turno)}</span>:
-                                        <strong class="text-white text-sm tracking-wide ml-1">${escapeHtml(nombreCompleto)}</strong>
-                                        ${infoExtra ? `<div class="text-gray-400 text-[11px] mt-0.5">${infoExtra}</div>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn-dismiss-sug text-gray-400 hover:text-white p-1 text-sm leading-none" title="Descartar sugerencia">✕</button>
-                        </div>
-                        <div class="mt-3 pt-2 border-t border-gray-700/60 flex items-center gap-2 flex-wrap">
-                            <button type="button" class="btn-aplicar-guardia px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-sm transition active:scale-95 flex items-center gap-1.5">
-                                <span>✓</span> Usar datos de ${escapeHtml(primerNombre)}
-                            </button>
-                            <button type="button" class="btn-otro-guardia px-3 py-1.5 rounded-lg bg-gray-700/90 hover:bg-gray-700 text-gray-300 hover:text-white text-xs border border-gray-600 transition active:scale-95">
-                                ✕ No, es otro oficial
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                const btnAplicar = sugWrap.querySelector('.btn-aplicar-guardia');
-                if (btnAplicar) {
-                    btnAplicar.addEventListener('click', () => {
-                        if (nombreInput) {
-                            nombreInput.value = data.nombre_guardia;
-                            nombreInput.dataset.autoFilledGuardia = '1';
-                            nombreInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            nombreInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        if (numEmpInput && data.numero_empleado) {
-                            numEmpInput.value = data.numero_empleado;
-                            numEmpInput.dataset.autoFilledGuardia = '1';
-                            numEmpInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            numEmpInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        if (docInput && data.documento_guardia) {
-                            docInput.value = data.documento_guardia;
-                            docInput.dataset.autoFilledGuardia = '1';
-                            docInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            docInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        if (tiempoSelect && data.tiempo_en_puesto) {
-                            tiempoSelect.value = data.tiempo_en_puesto;
-                            tiempoSelect.dataset.autoFilledGuardia = '1';
-                            tiempoSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        if (licArmaInput && data.licencia_portar_arma) {
-                            licArmaInput.value = data.licencia_portar_arma;
-                            licArmaInput.dataset.autoFilledGuardia = '1';
-                            licArmaInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            licArmaInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-
-                        sugWrap.innerHTML = `
-                            <div class="p-2.5 px-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-xs text-emerald-300 flex items-center justify-between shadow-sm">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-emerald-400 font-bold">✓</span>
-                                    <span>Datos aplicados: <strong class="text-white">${escapeHtml(data.nombre_guardia)}</strong></span>
-                                </div>
-                                <button type="button" class="btn-deshacer-guardia text-xs text-gray-300 hover:text-white underline hover:no-underline ml-2 transition">
-                                    ↺ Deshacer / Limpiar
-                                </button>
-                            </div>
-                        `;
-
-                        const btnDeshacer = sugWrap.querySelector('.btn-deshacer-guardia');
-                        if (btnDeshacer) {
-                            btnDeshacer.addEventListener('click', () => {
-                                if (nombreInput) { nombreInput.value = ''; delete nombreInput.dataset.autoFilledGuardia; nombreInput.dispatchEvent(new Event('input', { bubbles: true })); }
-                                if (numEmpInput) { numEmpInput.value = ''; delete numEmpInput.dataset.autoFilledGuardia; numEmpInput.dispatchEvent(new Event('input', { bubbles: true })); }
-                                if (docInput) { docInput.value = ''; delete docInput.dataset.autoFilledGuardia; docInput.dispatchEvent(new Event('input', { bubbles: true })); }
-                                if (tiempoSelect) { tiempoSelect.value = ''; delete tiempoSelect.dataset.autoFilledGuardia; tiempoSelect.dispatchEvent(new Event('change', { bubbles: true })); }
-                                if (licArmaInput) { licArmaInput.value = ''; delete licArmaInput.dataset.autoFilledGuardia; licArmaInput.dispatchEvent(new Event('input', { bubbles: true })); }
-                                sugWrap.innerHTML = '';
-                                if (nombreInput) nombreInput.focus();
-                            });
+                // Eventos de los chips de selección rápida
+                sugWrap.querySelectorAll('.btn-chip-guardia').forEach(chip => {
+                    chip.addEventListener('click', () => {
+                        const poolIdx = parseInt(chip.dataset.poolIdx, 10);
+                        if (!isNaN(poolIdx) && availablePool[poolIdx]) {
+                            applyGuard(availablePool[poolIdx]);
                         }
                     });
-                }
+                });
 
                 const dismissAction = () => {
                     sugWrap.innerHTML = '';
@@ -1046,6 +1478,121 @@
                 if (btnOtro) btnOtro.addEventListener('click', dismissAction);
                 const btnDismiss = sugWrap.querySelector('.btn-dismiss-sug');
                 if (btnDismiss) btnDismiss.addEventListener('click', dismissAction);
+            },
+
+            updateAllBlockSuggestions(excludeIndex) {
+                const blocks = document.querySelectorAll('#supervisionsContainer .supervision-block');
+                blocks.forEach(blk => {
+                    const idx = blk.dataset.index;
+                    if (excludeIndex !== undefined && excludeIndex !== null && String(idx) === String(excludeIndex)) {
+                        return;
+                    }
+                    this.onShiftChanged(blk, idx);
+                });
+            },
+
+            updateNextPostInvitations() {
+                const propSelect = document.getElementById('id_propiedad');
+                const propId = propSelect ? propSelect.value : '';
+                const blocks = Array.from(document.querySelectorAll('#supervisionsContainer .supervision-block'));
+                if (!blocks.length) return;
+
+                // Obtener catálogo de puestos de la propiedad si está disponible
+                let catalogedPuestos = [];
+                if (propId && window.secappPuestosByProperty && typeof window.secappPuestosByProperty.get === 'function') {
+                    catalogedPuestos = window.secappPuestosByProperty.get(String(propId)) || [];
+                }
+
+                // Puestos actualmente asignados en los bloques
+                const usedPuestos = new Set();
+                blocks.forEach(blk => {
+                    const pInput = blk.querySelector('[name$="[detalles_puestos]"]');
+                    const val = pInput ? normalizeKey(pInput.value) : '';
+                    if (val) usedPuestos.add(val);
+                });
+
+                const remainingPuestos = catalogedPuestos.filter(p => !usedPuestos.has(normalizeKey(p)));
+
+                blocks.forEach((blk, idx) => {
+                    const invWrap = document.getElementById(`nextPostInvitation_${idx}`);
+                    if (!invWrap) return;
+
+                    const isLastBlock = (idx === blocks.length - 1);
+                    if (!isLastBlock) {
+                        invWrap.innerHTML = '';
+                        return;
+                    }
+
+                    if (remainingPuestos.length > 0) {
+                        const nextPuesto = remainingPuestos[0];
+                        const coveredCount = blocks.length;
+                        const totalCount = Math.max(catalogedPuestos.length, coveredCount + remainingPuestos.length);
+                        invWrap.innerHTML = `
+                            <div class="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/80 via-gray-900 to-gray-800 border border-blue-500/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-full bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300 font-bold text-sm shadow-inner">
+                                        ${coveredCount + 1}
+                                    </div>
+                                    <div>
+                                        <div class="text-[11px] text-blue-300 font-medium">Siguiente puesto pendiente en esta instalación:</div>
+                                        <div class="text-sm font-bold text-white flex items-center gap-1.5 flex-wrap">
+                                            <span>📍 ${escapeHtml(nextPuesto)}</span>
+                                            <span class="text-xs text-gray-400 font-normal">(${coveredCount} de ${totalCount} supervisados)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-supervisar-siguiente w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow active:scale-95 flex items-center justify-center gap-1.5">
+                                    <span>+ Supervisar ${escapeHtml(nextPuesto)}</span>
+                                </button>
+                            </div>
+                        `;
+                        const btnSiguiente = invWrap.querySelector('.btn-supervisar-siguiente');
+                        if (btnSiguiente) {
+                            btnSiguiente.addEventListener('click', () => {
+                                if (typeof window.secappAddSupervisionWithPuesto === 'function') {
+                                    window.secappAddSupervisionWithPuesto(nextPuesto);
+                                } else {
+                                    const addBtn = document.getElementById('addSupervisionBtn');
+                                    if (addBtn) addBtn.click();
+                                }
+                            });
+                        }
+                    } else if (catalogedPuestos.length > 1 && remainingPuestos.length === 0) {
+                        invWrap.innerHTML = `
+                            <div class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 flex items-center gap-2.5 text-xs text-emerald-300 shadow">
+                                <span class="text-base select-none">🎉</span>
+                                <div>
+                                    <strong class="text-white">¡Ronda completa de la instalación!</strong> Se han cubierto todos los puestos registrados (${catalogedPuestos.length} de ${catalogedPuestos.length}).
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        invWrap.innerHTML = `
+                            <div class="pt-2 flex justify-end">
+                                <button type="button" class="btn-supervisar-siguiente text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 p-1">
+                                    <span>+ Supervisar otro puesto en esta instalación</span>
+                                </button>
+                            </div>
+                        `;
+                        const btnSiguiente = invWrap.querySelector('.btn-supervisar-siguiente');
+                        if (btnSiguiente) {
+                            btnSiguiente.addEventListener('click', () => {
+                                const addBtn = document.getElementById('addSupervisionBtn');
+                                if (addBtn) addBtn.click();
+                            });
+                        }
+                    }
+                });
+
+                // Actualizar texto del botón de envío final para máxima claridad
+                const submitBtn = document.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    if (blocks.length > 1) {
+                        submitBtn.textContent = `Enviar Todas las Supervisiones (${blocks.length} puestos)`;
+                    } else {
+                        submitBtn.textContent = 'Enviar Todas las Supervisiones';
+                    }
+                }
             }
         };
     })();
@@ -1080,8 +1627,8 @@
                     <div class="flex justify-between items-center mb-6">
                         <div class="flex items-center gap-3">
                             <h2 class="text-2xl font-bold text-blue-400">Supervisión #${index + 1}</h2>
-                            <button type="button" class="text-xs text-gray-400 hover:text-gray-200 px-2.5 py-1 rounded-lg bg-gray-700/60 hover:bg-gray-700 border border-gray-600 transition" onclick="resetSupervisionBlock(${index})" title="Limpiar todos los campos de este puesto y empezar de nuevo">
-                                ↺ Limpiar puesto
+                            <button type="button" class="text-xs text-gray-300 hover:text-white px-2.5 py-1 rounded-lg bg-gray-700/80 hover:bg-gray-700 border border-gray-600 transition flex items-center gap-1 active:scale-95 cursor-pointer" onclick="resetSupervisionBlock(${index})" title="Vaciar todos los campos de este puesto para llenarlo desde cero">
+                                <span>↺</span> Llenar puesto desde cero
                             </button>
                         </div>
                         ${index > 0 ? `<button type="button" class="text-red-400 hover:text-red-300 remove-supervision" onclick="removeSupervision(${index})">Eliminar</button>` : ''}
@@ -1097,6 +1644,7 @@
                                  puesto was never stored. This is the column the Expediente already
                                  reads as the "lugar" of the supervision. -->
                             <input type="text" inputmode="text" name="supervisions[${index}][detalles_puestos]" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
+                            <div id="dotacionPuestoNotice_${index}" class="mt-2"></div>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
@@ -1259,6 +1807,11 @@
                                 <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_arma]" class="form-input" tabindex="-1" readonly>
                             </div>
                         </div>
+                        <div class="md:col-span-2 pt-3 border-t border-gray-700/60">
+                            <h4 class="text-sm font-semibold text-gray-200 flex items-center gap-1.5 mb-1">
+                                <span>📻</span> Equipamiento de Comunicación (Radio)
+                            </h4>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
                             <input type="text" inputmode="text" name="supervisions[${index}][radio_asignado_serial]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
@@ -1345,13 +1898,16 @@
                             <input type="hidden" name="supervisions[${index}][firma_supervisor]" id="firma_supervisor_${index}">
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
+                            <h3 id="labelFirmaGuardia_${index}" class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
                             <label class="block text-sm font-medium mb-1">Firma</label>
                             <canvas id="signaturePadGuardia_${index}" class="signature-pad w-full h-32"></canvas>
                             <button type="button" class="mt-2 text-sm text-blue-400 hover:text-blue-300 clear-sig-btn" data-index="${index}">Limpiar Firma</button>
                             <input type="hidden" name="supervisions[${index}][firma_guardia]" id="firma_guardia_${index}">
                         </div>
                     </div>
+
+                    <!-- Invitación al Siguiente Puesto / Ronda Guiada -->
+                    <div id="nextPostInvitation_${index}" class="mt-4"></div>
                 `;
 
                 return div;
@@ -1384,9 +1940,10 @@
                 signaturePads[storageKey] = pad;
 
                 function resize() {
+                    const rect = canvas.getBoundingClientRect();
+                    if (!rect || rect.width === 0 || rect.height === 0) return;
                     const data = pad.toData();
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                    const rect = canvas.getBoundingClientRect();
                     canvas.width = rect.width * ratio;
                     canvas.height = rect.height * ratio;
                     canvas.getContext('2d').scale(ratio, ratio);
@@ -1420,10 +1977,17 @@
                 btnSupervisor.addEventListener('click', () => { padSupervisor.clear(); });
             }
 
-            function addSupervision() {
+            function addSupervision(presetPuesto) {
                 const index = supervisionCount++;
                 const block = createSupervisionBlock(index);
                 container.appendChild(block);
+
+                if (typeof presetPuesto === 'string' && presetPuesto.trim()) {
+                    const pInput = block.querySelector('[name$="[detalles_puestos]"]');
+                    if (pInput) {
+                        pInput.value = presetPuesto.trim();
+                    }
+                }
 
                 // Heredar contexto operativo general si se añaden puestos adicionales (#2, #3...)
                 if (index > 0) {
@@ -1528,6 +2092,7 @@
                 const horaSalida = block.querySelector('[name$="[hora_salida]"]');
                 const puestoInput = block.querySelector('[name$="[detalles_puestos]"]');
                 const nombreGuardia = block.querySelector('[name$="[nombre_guardia]"]');
+                const docGuardia = block.querySelector('[name$="[documento_guardia]"]');
 
                 if (horarioSel) {
                     horarioSel.addEventListener('change', function () {
@@ -1541,6 +2106,10 @@
                     puestoInput.addEventListener('change', function () {
                         if (horarioSel && horarioSel.value && window.secappTurnosHelper) {
                             window.secappTurnosHelper.onShiftChanged(block, index);
+                        }
+                        if (window.secappTurnosHelper) {
+                            window.secappTurnosHelper.onPuestoChanged(block, index);
+                            window.secappTurnosHelper.updateNextPostInvitations();
                         }
                     });
                 }
@@ -1563,14 +2132,134 @@
                         if (wrap && wrap.querySelector('.sugerencia-guardia-card')) {
                             wrap.innerHTML = '';
                         }
+                        const lblSig = document.getElementById(`labelFirmaGuardia_${index}`);
+                        if (lblSig) {
+                            lblSig.textContent = this.value.trim() ? `Firma del Guardia (${this.value.trim()})` : 'Firma del Guardia';
+                        }
+                        if (window.secappTurnosHelper) {
+                            window.secappTurnosHelper.updateAllBlockSuggestions(index);
+                        }
                     });
+                }
+
+                if (docGuardia) {
+                    docGuardia.addEventListener('input', function () {
+                        delete this.dataset.autoFilledGuardia;
+                        if (window.secappTurnosHelper) {
+                            window.secappTurnosHelper.updateAllBlockSuggestions(index);
+                        }
+                    });
+                }
+
+                // Guardar dotación específica de este puesto en tiempo real cuando se ingrese o modifique
+                const savePostEquipment = () => {
+                    const propSelect = document.getElementById('id_propiedad');
+                    const propId = propSelect ? propSelect.value : '';
+                    const puesto = (puestoInput ? puestoInput.value : '').trim();
+                    if (!propId || !puesto || !window.secappTurnosHelper) return;
+
+                    const getVal = (name) => block.querySelector(`[name$="[${name}]"]`)?.value || '';
+                    window.secappTurnosHelper.saveDotacionPuesto(propId, puesto, {
+                        detalles_puestos: puesto,
+                        tipo_servicio: getVal('tipo_servicio'),
+                        modalidad_servicio: getVal('modalidad_servicio'),
+                        horario_servicio: getVal('horario_servicio'),
+                        hora_entrada: getVal('hora_entrada'),
+                        hora_salida: getVal('hora_salida'),
+                        porta_arma: getVal('porta_arma'),
+                        tipo_arma: getVal('tipo_arma'),
+                        serie_arma: getVal('serie_arma'),
+                        matricula_arma: getVal('matricula_arma'),
+                        cantidad_municion: getVal('cantidad_municion'),
+                        fecha_vencimiento_permiso_porte: getVal('fecha_vencimiento_permiso_porte'),
+                        fecha_ultimo_mtto_arma: getVal('fecha_ultimo_mtto_arma'),
+                        radio_asignado_serial: getVal('radio_asignado_serial'),
+                        marca_radio: getVal('marca_radio'),
+                        tipo_radio: getVal('tipo_radio'),
+                        fecha_ultimo_mtto_radio: getVal('fecha_ultimo_mtto_radio'),
+                    });
+                };
+
+                const equipInputs = block.querySelectorAll(`
+                    [name$="[porta_arma]"], [name$="[tipo_arma]"], [name$="[serie_arma]"], [name$="[matricula_arma]"],
+                    [name$="[cantidad_municion]"], [name$="[radio_asignado_serial]"], [name$="[marca_radio]"],
+                    [name$="[tipo_radio]"], [name$="[fecha_vencimiento_permiso_porte]"],
+                    [name$="[fecha_ultimo_mtto_arma]"], [name$="[fecha_ultimo_mtto_radio]"]
+                `);
+                equipInputs.forEach(inp => {
+                    inp.addEventListener('change', savePostEquipment);
+                });
+
+                // Si se pasó un puesto predefinido, sincronizar de inmediato
+                if (typeof presetPuesto === 'string' && presetPuesto.trim()) {
+                    const pField = block.querySelector('[name$="[detalles_puestos]"]');
+                    if (pField && pField.value !== presetPuesto.trim()) {
+                        pField.value = presetPuesto.trim();
+                        pField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+
+                // Heredar contexto operativo general (tipo, modalidad, turno y horas) para nuevos puestos (#2, #3...)
+                if (index > 0) {
+                    const prevBlock = container.querySelector(`[data-index="${index - 1}"]`);
+                    if (prevBlock) {
+                        const getVal = (name) => prevBlock.querySelector(`[name$="[${name}]"]`)?.value || '';
+                        const prevTipo = getVal('tipo_servicio');
+                        const prevMod = getVal('modalidad_servicio');
+                        const prevHorario = getVal('horario_servicio');
+                        const prevEntrada = getVal('hora_entrada');
+                        const prevSalida = getVal('hora_salida');
+                        if (prevTipo) {
+                            const el = block.querySelector('[name$="[tipo_servicio]"]');
+                            if (el) el.value = prevTipo;
+                        }
+                        if (prevMod) {
+                            const el = block.querySelector('[name$="[modalidad_servicio]"]');
+                            if (el) el.value = prevMod;
+                        }
+                        if (prevHorario) {
+                            const el = block.querySelector('[name$="[horario_servicio]"]');
+                            if (el) el.value = prevHorario;
+                        }
+                        if (prevEntrada) {
+                            const el = block.querySelector('[name$="[hora_entrada]"]');
+                            if (el) { el.value = prevEntrada; el.dataset.autoFilled = '1'; }
+                        }
+                        if (prevSalida) {
+                            const el = block.querySelector('[name$="[hora_salida]"]');
+                            if (el) { el.value = prevSalida; el.dataset.autoFilled = '1'; }
+                        }
+                    }
+                }
+
+                // Equipamiento específico del puesto (Arma, Radio, Permisos, Mantenimientos)
+                // Se busca la dotación propia de este puesto (nunca se copian armas de otro puesto)
+                const targetPuesto = (puestoInput && puestoInput.value ? puestoInput.value.trim() : (presetPuesto || '')).trim();
+                const propSelect = document.getElementById('id_propiedad');
+                const propId = propSelect ? propSelect.value : '';
+                if (targetPuesto && propId && window.secappTurnosHelper) {
+                    window.secappTurnosHelper.onPuestoChanged(block, index);
                 }
 
                 // Si el horario ya vino heredado, procesar turno de inmediato
                 if (horarioSel && horarioSel.value && window.secappTurnosHelper) {
                     window.secappTurnosHelper.onShiftChanged(block, index);
                 }
+
+                if (window.secappTurnosHelper) {
+                    window.secappTurnosHelper.updateNextPostInvitations();
+                }
+
+                if (index > 0) {
+                    setTimeout(() => {
+                        block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+                }
             }
+
+            window.secappAddSupervisionWithPuesto = function (puesto) {
+                addSupervision(puesto);
+            };
 
             // Define removeSupervision as a global function so onclick can access it
             window.removeSupervision = function (index) {
@@ -1590,24 +2279,52 @@
                             header.textContent = `Supervisión #${idx + 1}`;
                         }
                     });
+
+                    if (window.secappTurnosHelper) {
+                        window.secappTurnosHelper.updateAllBlockSuggestions();
+                        window.secappTurnosHelper.updateNextPostInvitations();
+                    }
                 }
             };
 
-            // Limpieza completa y amigable de un puesto individual
+            // Limpieza completa y amigable de un puesto individual con opción de Deshacer (sin modales nativos)
+            window._supervisionBlockSnapshots = window._supervisionBlockSnapshots || {};
+
             window.resetSupervisionBlock = function (index) {
                 const block = container.querySelector(`[data-index="${index}"]`);
                 if (!block) return;
 
-                const hasValues = Array.from(block.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
-                    if (el.type === 'checkbox' || el.type === 'radio') return el.checked;
-                    return el.value && el.value.trim() !== '';
+                // Capturar snapshot completo para permitir deshacer instantáneamente
+                const snapshot = {
+                    inputs: {},
+                    checkboxes: {},
+                    selects: {},
+                    textareas: {},
+                    firmaGuardia: '',
+                    firmaSupervisor: '',
+                    labelFirma: document.getElementById(`labelFirmaGuardia_${index}`)?.textContent || 'Firma del Guardia'
+                };
+                block.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])').forEach(el => {
+                    const key = el.getAttribute('name') || el.id;
+                    if (key) snapshot.inputs[key] = el.value;
                 });
-
-                if (hasValues) {
-                    if (!confirm('¿Desea limpiar todos los campos de este puesto para empezar de nuevo?')) {
-                        return;
-                    }
-                }
+                block.querySelectorAll('textarea').forEach(el => {
+                    const key = el.getAttribute('name') || el.id;
+                    if (key) snapshot.textareas[key] = el.value;
+                });
+                block.querySelectorAll('input[type="checkbox"]').forEach(el => {
+                    const key = el.getAttribute('name') || el.id;
+                    if (key) snapshot.checkboxes[key] = el.checked;
+                });
+                block.querySelectorAll('select').forEach(el => {
+                    const key = el.getAttribute('name') || el.id;
+                    if (key) snapshot.selects[key] = el.value;
+                });
+                const fg = document.getElementById(`firma_guardia_${index}`);
+                if (fg) snapshot.firmaGuardia = fg.value;
+                const fs = document.getElementById(`firma_supervisor_${index}`);
+                if (fs) snapshot.firmaSupervisor = fs.value;
+                window._supervisionBlockSnapshots[index] = snapshot;
 
                 // 1. Limpiar inputs y textareas
                 block.querySelectorAll('input:not([type="hidden"]), textarea').forEach(el => {
@@ -1634,10 +2351,10 @@
                 const pads = window.signaturePads || signaturePads;
                 if (pads[`guardia_${index}`]) pads[`guardia_${index}`].clear();
                 if (pads[`supervisor_${index}`]) pads[`supervisor_${index}`].clear();
-                const fg = document.getElementById(`firma_guardia_${index}`);
                 if (fg) fg.value = '';
-                const fs = document.getElementById(`firma_supervisor_${index}`);
                 if (fs) fs.value = '';
+                const lblSig = document.getElementById(`labelFirmaGuardia_${index}`);
+                if (lblSig) lblSig.textContent = 'Firma del Guardia';
 
                 // 4. Ocultar y limpiar secciones condicionales
                 const armaFields = document.getElementById(`armaFields_${index}`);
@@ -1653,12 +2370,108 @@
                 const tiempoOtro = document.getElementById(`tiempoPuestoOtro_${index}`);
                 if (tiempoOtro) tiempoOtro.classList.add('hidden');
 
-                // 5. Limpiar sugerencia de guardia
+                // 5. Limpiar sugerencia de guardia y aviso de dotación
                 const sugWrap = document.getElementById(`sugerenciaGuardiaWrap_${index}`);
                 if (sugWrap) sugWrap.innerHTML = '';
+                const noticeWrap = document.getElementById(`dotacionPuestoNotice_${index}`);
+                if (noticeWrap) noticeWrap.innerHTML = '';
+
+                // 6. Mostrar banner informativo con botón Deshacer (UX fluida y segura)
+                let resetNotice = document.getElementById(`resetNoticeBlock_${index}`);
+                if (!resetNotice) {
+                    resetNotice = document.createElement('div');
+                    resetNotice.id = `resetNoticeBlock_${index}`;
+                    resetNotice.className = 'mb-4 p-3 rounded-xl bg-blue-950/80 border border-blue-500/40 text-xs text-blue-200 flex items-center justify-between shadow';
+                    const topRow = block.querySelector('.flex.justify-between.items-center');
+                    if (topRow && topRow.nextSibling) {
+                        block.insertBefore(resetNotice, topRow.nextSibling);
+                    } else {
+                        block.prepend(resetNotice);
+                    }
+                }
+                resetNotice.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-blue-400 font-bold">✓</span>
+                        <span>Puesto #${index + 1} vaciado para llenado desde cero.</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition cursor-pointer" onclick="undoResetSupervisionBlock(${index})">
+                            ↺ Deshacer
+                        </button>
+                        <button type="button" class="text-blue-300 hover:text-white px-1.5 py-0.5" onclick="this.parentElement.parentElement.remove()">✕</button>
+                    </div>
+                `;
+
+                if (window.secappTurnosHelper) {
+                    window.secappTurnosHelper.updateAllBlockSuggestions();
+                    window.secappTurnosHelper.updateNextPostInvitations();
+                }
             };
 
-            addBtn.addEventListener('click', addSupervision);
+            window.undoResetSupervisionBlock = function (index) {
+                const block = container.querySelector(`[data-index="${index}"]`);
+                const snapshot = window._supervisionBlockSnapshots ? window._supervisionBlockSnapshots[index] : null;
+                if (!block || !snapshot) return;
+
+                // Restaurar inputs
+                Object.keys(snapshot.inputs).forEach(key => {
+                    const el = block.querySelector(`[name="${key}"], #${key}`);
+                    if (el) {
+                        el.value = snapshot.inputs[key];
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                // Restaurar textareas
+                Object.keys(snapshot.textareas).forEach(key => {
+                    const el = block.querySelector(`[name="${key}"], #${key}`);
+                    if (el) {
+                        el.value = snapshot.textareas[key];
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                });
+                // Restaurar checkboxes
+                Object.keys(snapshot.checkboxes).forEach(key => {
+                    const el = block.querySelector(`[name="${key}"], #${key}`);
+                    if (el) {
+                        el.checked = snapshot.checkboxes[key];
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                // Restaurar selects
+                Object.keys(snapshot.selects).forEach(key => {
+                    const el = block.querySelector(`[name="${key}"], #${key}`);
+                    if (el) {
+                        el.value = snapshot.selects[key];
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                // Restaurar firmas
+                const fg = document.getElementById(`firma_guardia_${index}`);
+                if (fg && snapshot.firmaGuardia) fg.value = snapshot.firmaGuardia;
+                const fs = document.getElementById(`firma_supervisor_${index}`);
+                if (fs && snapshot.firmaSupervisor) fs.value = snapshot.firmaSupervisor;
+                const lblSig = document.getElementById(`labelFirmaGuardia_${index}`);
+                if (lblSig && snapshot.labelFirma) lblSig.textContent = snapshot.labelFirma;
+
+                // Restaurar visibilidad condicional
+                const portaEl = block.querySelector(`[name="supervisions[${index}][porta_arma]"]`);
+                const armaFields = document.getElementById(`armaFields_${index}`);
+                if (armaFields && portaEl) {
+                    armaFields.classList.toggle('hidden', (portaEl.value || '').toLowerCase() !== 'si');
+                }
+
+                // Quitar banner
+                const resetNotice = document.getElementById(`resetNoticeBlock_${index}`);
+                if (resetNotice) resetNotice.remove();
+
+                if (window.secappTurnosHelper) {
+                    window.secappTurnosHelper.updateAllBlockSuggestions();
+                    window.secappTurnosHelper.updateNextPostInvitations();
+                }
+            };
+
+            addBtn.addEventListener('click', () => addSupervision());
 
             // Before submit: serialize signature pads to hidden inputs
             document.getElementById('supervisionForm').addEventListener('submit', function () {
@@ -1680,11 +2493,9 @@
                 const propId = propSelect ? propSelect.value : '';
                 if (propId && window.secappTurnosHelper) {
                     blocks.forEach(block => {
+                        const puesto = (block.querySelector('[name$="[detalles_puestos]"]')?.value || '').trim();
                         const turnoEl = block.querySelector('[name$="[horario_servicio]"]');
                         const turno = turnoEl ? turnoEl.value.trim().toLowerCase() : '';
-                        if (!turno || !['diurno', 'nocturno', 'mixto'].includes(turno)) return;
-
-                        const puesto = (block.querySelector('[name$="[detalles_puestos]"]')?.value || '').trim();
                         const entrada = (block.querySelector('[name$="[hora_entrada]"]')?.value || '').trim();
                         const salida = (block.querySelector('[name$="[hora_salida]"]')?.value || '').trim();
                         const nombreGuardia = (block.querySelector('[name$="[nombre_guardia]"]')?.value || '').trim();
@@ -1693,18 +2504,44 @@
                         const tiempoPuesto = (block.querySelector('[name$="[tiempo_en_puesto]"]')?.value || '').trim();
                         const licArma = (block.querySelector('[name$="[licencia_portar_arma]"]')?.value || '').trim();
 
-                        if (entrada || salida || nombreGuardia) {
-                            window.secappTurnosHelper.saveLearnedTurno({
-                                propId: propId,
-                                puesto: puesto,
-                                turno: turno,
+                        if (turno && ['diurno', 'nocturno', 'mixto'].includes(turno)) {
+                            if (entrada || salida || nombreGuardia) {
+                                window.secappTurnosHelper.saveLearnedTurno({
+                                    propId: propId,
+                                    puesto: puesto,
+                                    turno: turno,
+                                    hora_entrada: entrada,
+                                    hora_salida: salida,
+                                    nombre_guardia: nombreGuardia,
+                                    numero_empleado: numEmpleado,
+                                    documento_guardia: docGuardia,
+                                    tiempo_en_puesto: tiempoPuesto,
+                                    licencia_portar_arma: licArma,
+                                });
+                            }
+                        }
+
+                        // Guardar dotación específica de este puesto para futuras visitas
+                        if (puesto) {
+                            const getVal = (name) => block.querySelector(`[name$="[${name}]"]`)?.value || '';
+                            window.secappTurnosHelper.saveDotacionPuesto(propId, puesto, {
+                                detalles_puestos: puesto,
+                                tipo_servicio: getVal('tipo_servicio'),
+                                modalidad_servicio: getVal('modalidad_servicio'),
+                                horario_servicio: getVal('horario_servicio'),
                                 hora_entrada: entrada,
                                 hora_salida: salida,
-                                nombre_guardia: nombreGuardia,
-                                numero_empleado: numEmpleado,
-                                documento_guardia: docGuardia,
-                                tiempo_en_puesto: tiempoPuesto,
-                                licencia_portar_arma: licArma,
+                                porta_arma: getVal('porta_arma'),
+                                tipo_arma: getVal('tipo_arma'),
+                                serie_arma: getVal('serie_arma'),
+                                matricula_arma: getVal('matricula_arma'),
+                                cantidad_municion: getVal('cantidad_municion'),
+                                fecha_vencimiento_permiso_porte: getVal('fecha_vencimiento_permiso_porte'),
+                                fecha_ultimo_mtto_arma: getVal('fecha_ultimo_mtto_arma'),
+                                radio_asignado_serial: getVal('radio_asignado_serial'),
+                                marca_radio: getVal('marca_radio'),
+                                tipo_radio: getVal('tipo_radio'),
+                                fecha_ultimo_mtto_radio: getVal('fecha_ultimo_mtto_radio'),
                             });
                         }
                     });
@@ -1932,10 +2769,10 @@
                     return;
                 }
                 if (window.secappTurnosHelper) {
-                    window.secappTurnosHelper.learnFromResponse(propId, data.turnos, data.dotacion);
+                    window.secappTurnosHelper.learnFromResponse(propId, data.turnos, data.dotacion, data.guardias_pool, data.dotaciones_puestos);
                 }
-                if (data.dotacion) {
-                    aplicarEquipamientoPuestoAutomatico(data.dotacion);
+                if (data.dotacion || data.dotaciones_puestos) {
+                    aplicarEquipamientoPuestoAutomatico(data.dotacion, data.dotaciones_puestos);
                 } else {
                     wrap.innerHTML = '';
                 }
@@ -1950,98 +2787,67 @@
             });
         }
 
-        function aplicarEquipamientoPuestoAutomatico(dot) {
-            if (!dot || window.EDIT_MODE) return;
-            const prefix = 'supervisions[0]';
+        function aplicarEquipamientoPuestoAutomatico(dot, dotacionesPuestos) {
+            if (window.EDIT_MODE) return;
+            const propSelect = document.getElementById('id_propiedad');
+            const propId = propSelect ? propSelect.value : '';
 
-            function setFieldValue(name, value) {
-                if (value === undefined || value === null || value === '') return;
-                const selector = `[name="${prefix}[${name}]"]`;
-                const el = document.querySelector(selector);
-                if (el) {
-                    el.value = value;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
+            // Conservar en memoria global para referencia
+            if (dot) window.secappCurrentDotacion = dot;
+
+            // Aplicar equipamiento ESPECÍFICO a cada bloque según el puesto que tenga
+            const blocks = document.querySelectorAll('#supervisionsContainer .supervision-block');
+            blocks.forEach((blk, idx) => {
+                const pInput = blk.querySelector(`[name="supervisions[${idx}][detalles_puestos]"]`);
+                let pVal = pInput ? pInput.value.trim() : '';
+
+                // Si es bloque 0 y aún no tiene puesto escrito, asignar el de la dotación principal
+                if (idx === 0 && !pVal && dot && dot.detalles_puestos) {
+                    pVal = dot.detalles_puestos;
+                    if (pInput) {
+                        pInput.value = pVal;
+                        pInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
                 }
-            }
 
-            function clearFieldValue(name) {
-                const selector = `[name="${prefix}[${name}]"]`;
-                const el = document.querySelector(selector);
-                if (el) {
-                    el.value = '';
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                if (pVal && window.secappTurnosHelper) {
+                    const dotPost = window.secappTurnosHelper.getDotacionPuesto(propId, pVal);
+                    if (dotPost) {
+                        window.secappTurnosHelper.aplicarEquipamientoABloque(blk, idx, dotPost);
+                        window.secappTurnosHelper.mostrarAvisoDotacionPuesto(blk, idx, pVal, dotPost);
+                    } else if (idx === 0 && dot) {
+                        window.secappTurnosHelper.aplicarEquipamientoABloque(blk, idx, dot);
+                    }
+                } else if (idx === 0 && dot && window.secappTurnosHelper) {
+                    window.secappTurnosHelper.aplicarEquipamientoABloque(blk, idx, dot);
                 }
-            }
+            });
 
-            // 1. Datos Operativos del Puesto
-            setFieldValue('detalles_puestos', dot.detalles_puestos);
-            setFieldValue('horario_servicio', dot.horario_servicio);
-            setFieldValue('tipo_servicio', dot.tipo_servicio);
-            setFieldValue('modalidad_servicio', dot.modalidad_servicio);
-
-            // 2. Equipamiento persistente: Arma y permisos del puesto
-            if (dot.porta_arma) {
-                setFieldValue('porta_arma', dot.porta_arma);
-                if (dot.porta_arma === 'Si') {
-                    setFieldValue('tipo_arma', dot.tipo_arma);
-                    setFieldValue('serie_arma', dot.serie_arma);
-                    setFieldValue('matricula_arma', dot.matricula_arma);
-                    setFieldValue('cantidad_municion', dot.cantidad_municion);
-                    setFieldValue('fecha_vencimiento_permiso_porte', dot.fecha_vencimiento_permiso_porte);
-                    setFieldValue('fecha_ultimo_mtto_arma', dot.fecha_ultimo_mtto_arma);
-                }
-            }
-
-            // 3. Equipamiento persistente: Radio del puesto
-            if (dot.radio_asignado_serial) {
-                setFieldValue('radio_asignado_serial', dot.radio_asignado_serial);
-                setFieldValue('marca_radio', dot.marca_radio);
-                setFieldValue('tipo_radio', dot.tipo_radio);
-                setFieldValue('fecha_ultimo_mtto_radio', dot.fecha_ultimo_mtto_radio);
-            }
-
-            // 4. GARANTÍA: Los datos del Oficial en turno NUNCA se pre-llenan
-            // (nombre, carnet, cédula, tiempo y licencia propia cambian con cada turno)
-
-            const tieneArma = dot.porta_arma === 'Si' && (dot.serie_arma || dot.tipo_arma);
-            const tieneRadio = !!dot.radio_asignado_serial;
-
-            if (!tieneArma && !tieneRadio && !dot.detalles_puestos) {
+            // En el banner general, indicar que cada puesto tiene su inventario propio
+            const cantPuestos = dotacionesPuestos ? Object.keys(dotacionesPuestos).length : (dot ? 1 : 0);
+            if (cantPuestos === 0 && (!dot || (!dot.porta_arma && !dot.radio_asignado_serial))) {
                 wrap.innerHTML = '';
                 return;
             }
 
-            const venceTxt = dot.fecha_vencimiento_permiso_porte
-                ? ` · Vence permiso: <span class="font-mono text-amber-300 font-semibold">${escapeHtml(dot.fecha_vencimiento_permiso_porte)}</span>`
-                : '';
-            const mttoArmaTxt = dot.fecha_ultimo_mtto_arma
-                ? ` [Mtto: <span class="text-gray-300 font-mono">${escapeHtml(dot.fecha_ultimo_mtto_arma)}</span>]`
-                : '';
-            const armaTxt = tieneArma
-                ? `Arma: <strong class="text-white">${escapeHtml(dot.tipo_arma || 'Arma')} ${escapeHtml(dot.serie_arma || '')}</strong>${dot.matricula_arma ? ` (Permiso/Matrícula: <span class="font-mono text-gray-200">${escapeHtml(dot.matricula_arma)}</span>)` : ''}${venceTxt}${mttoArmaTxt}`
-                : '<span class="text-gray-400">Puesto sin arma</span>';
-
-            const mttoRadioTxt = dot.fecha_ultimo_mtto_radio
-                ? ` [Mtto: <span class="text-gray-300 font-mono">${escapeHtml(dot.fecha_ultimo_mtto_radio)}</span>]`
-                : '';
-            const radioTxt = tieneRadio
-                ? ` · Radio: <strong class="text-white">${escapeHtml(dot.radio_asignado_serial)}</strong>${mttoRadioTxt}`
-                : '';
+            const p0Name = (dot && dot.detalles_puestos) ? dot.detalles_puestos : 'Puesto #1';
+            const armaTxt0 = (dot && dot.porta_arma === 'Si' && dot.serie_arma) ? `Arma: <strong class="text-white">${escapeHtml(dot.tipo_arma || '')} ${escapeHtml(dot.serie_arma)}</strong>` : 'Sin arma';
+            const radioTxt0 = (dot && dot.radio_asignado_serial) ? ` · Radio: <strong class="text-white">${escapeHtml(dot.radio_asignado_serial)}</strong>` : '';
 
             wrap.innerHTML = `
-                <div id="badgeEquipamientoPrecargado" class="p-3 bg-gradient-to-r from-emerald-950/80 via-gray-900 to-gray-800 border border-emerald-500/50 rounded-xl text-xs text-emerald-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 shadow">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                        <span><strong>Equipamiento del puesto precargado:</strong> ${armaTxt}${radioTxt}</span>
-                        <span class="text-[11px] text-gray-400">· Oficial listo para captura en vivo</span>
+                <div id="badgeEquipamientoPrecargado" class="p-3.5 bg-gradient-to-r from-emerald-950/80 via-gray-900 to-gray-800 border border-emerald-500/50 rounded-xl text-xs text-emerald-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+                    <div class="flex items-start md:items-center gap-2.5">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0 mt-0.5 md:mt-0 shadow-[0_0_8px_rgba(52,211,153,0.7)]"></span>
+                        <div class="leading-relaxed">
+                            <div><strong class="text-white text-xs">Dotación por puesto detectada:</strong> ${cantPuestos > 1 ? `Se identificaron ${cantPuestos} puestos con inventario propio en este sitio.` : `Puesto habitual (${escapeHtml(p0Name)}): ${armaTxt0}${radioTxt0}.`}</div>
+                            <div class="text-[11px] text-gray-400 mt-0.5">Todos los campos son 100% editables en vivo ante emergencias, relevos o reemplazo de equipo.</div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-3 self-end md:self-auto shrink-0">
-                        <button type="button" id="btnLimpiarEquipamiento" class="text-xs text-gray-400 hover:text-white underline" title="Limpiar equipamiento si este turno no tiene o cambió">
-                            Limpiar equipos
+                    <div class="flex items-center gap-2.5 self-end md:self-auto shrink-0 pt-1 md:pt-0">
+                        <button type="button" id="btnLimpiarEquipamiento" class="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-600 text-xs transition cursor-pointer" title="Vaciar datos precargados y comenzar el llenado completamente desde cero">
+                            ✏️ Llenar desde cero
                         </button>
-                        <button type="button" onclick="this.closest('#badgeEquipamientoPrecargado').remove()" class="text-gray-400 hover:text-white px-1">✕</button>
+                        <button type="button" onclick="this.closest('#badgeEquipamientoPrecargado').remove()" class="text-gray-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-gray-700/50 text-sm font-bold" title="Cerrar aviso">✕</button>
                     </div>
                 </div>
             `;
@@ -2049,23 +2855,84 @@
             const btnLimpiar = document.getElementById('btnLimpiarEquipamiento');
             if (btnLimpiar) {
                 btnLimpiar.addEventListener('click', () => {
-                    clearFieldValue('porta_arma');
-                    clearFieldValue('tipo_arma');
-                    clearFieldValue('serie_arma');
-                    clearFieldValue('matricula_arma');
-                    clearFieldValue('cantidad_municion');
-                    clearFieldValue('fecha_vencimiento_permiso_porte');
-                    clearFieldValue('fecha_ultimo_mtto_arma');
-                    clearFieldValue('radio_asignado_serial');
-                    clearFieldValue('marca_radio');
-                    clearFieldValue('tipo_radio');
-                    clearFieldValue('fecha_ultimo_mtto_radio');
-                    wrap.innerHTML = '';
+                    const allBlocks = document.querySelectorAll('#supervisionsContainer .supervision-block');
+                    const fieldsToClear = [
+                        'porta_arma', 'tipo_arma', 'serie_arma', 'matricula_arma', 'cantidad_municion',
+                        'fecha_vencimiento_permiso_porte', 'fecha_ultimo_mtto_arma',
+                        'radio_asignado_serial', 'marca_radio', 'tipo_radio', 'fecha_ultimo_mtto_radio'
+                    ];
+
+                    // Guardar snapshot previo de equipamiento para permitir Deshacer
+                    const prevSnapshot = [];
+                    allBlocks.forEach((blk, idx) => {
+                        const bData = {};
+                        fieldsToClear.forEach(fName => {
+                            const el = blk.querySelector(`[name="supervisions[${idx}][${fName}]"]`);
+                            bData[fName] = el ? el.value : '';
+                        });
+                        prevSnapshot.push(bData);
+                    });
+                    window._prevGlobalEquipSnapshot = prevSnapshot;
+                    window._prevSecappCurrentDotacion = window.secappCurrentDotacion;
+
+                    allBlocks.forEach((blk, idx) => {
+                        fieldsToClear.forEach((fName) => {
+                            const el = blk.querySelector(`[name="supervisions[${idx}][${fName}]"]`);
+                            if (el) {
+                                el.value = '';
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        });
+                        const armaDiv = document.getElementById(`armaFields_${idx}`);
+                        if (armaDiv) armaDiv.classList.add('hidden');
+                        const notice = document.getElementById(`dotacionPuestoNotice_${idx}`);
+                        if (notice) notice.innerHTML = '';
+                    });
+                    window.secappCurrentDotacion = null;
+
+                    wrap.innerHTML = `
+                        <div class="p-2.5 rounded-xl bg-gray-900/95 border border-amber-500/40 text-xs text-gray-200 flex items-center justify-between shadow">
+                            <span class="flex items-center gap-1.5"><span class="text-amber-400">⚡</span> Modo desde cero activo: dotación de todos los puestos vaciada.</span>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="btnUndoGlobalEquip" class="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs cursor-pointer transition">↺ Deshacer</button>
+                                <button type="button" class="text-gray-400 hover:text-white px-1" onclick="this.parentElement.parentElement.remove()">✕</button>
+                            </div>
+                        </div>
+                    `;
+
+                    const btnUndo = document.getElementById('btnUndoGlobalEquip');
+                    if (btnUndo) {
+                        btnUndo.addEventListener('click', () => {
+                            if (window._prevGlobalEquipSnapshot) {
+                                allBlocks.forEach((blk, idx) => {
+                                    const bData = window._prevGlobalEquipSnapshot[idx] || {};
+                                    fieldsToClear.forEach(fName => {
+                                        const el = blk.querySelector(`[name="supervisions[${idx}][${fName}]"]`);
+                                        if (el && bData[fName] !== undefined) {
+                                            el.value = bData[fName];
+                                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                                        }
+                                    });
+                                    const portaEl = blk.querySelector(`[name="supervisions[${idx}][porta_arma]"]`);
+                                    const armaDiv = document.getElementById(`armaFields_${idx}`);
+                                    if (armaDiv && portaEl) {
+                                        armaDiv.classList.toggle('hidden', (portaEl.value || '').toLowerCase() !== 'si');
+                                    }
+                                });
+                                window.secappCurrentDotacion = window._prevSecappCurrentDotacion;
+                                if (window._prevSecappCurrentDotacion) {
+                                    mostrarBannerDotacion(window._prevSecappCurrentDotacion);
+                                }
+                            }
+                        });
+                    }
                 });
             }
 
             // Foco automático en el primer campo del oficial
-            const nombreInput = document.querySelector(`[name="${prefix}[nombre_guardia]"]`);
+            const nombreInput = document.querySelector('[name="supervisions[0][nombre_guardia]"]');
             if (nombreInput && !nombreInput.value) {
                 nombreInput.focus();
             }
@@ -2073,11 +2940,17 @@
 
         propSelect.addEventListener('change', function () {
             consultarUltimaDotacion(this.value);
+            if (window.secappTurnosHelper) {
+                window.secappTurnosHelper.updateNextPostInvitations();
+            }
         });
 
         // Verificación inicial si ya viene preseleccionada por deep-link
         if (propSelect.value) {
             consultarUltimaDotacion(propSelect.value);
+            if (window.secappTurnosHelper) {
+                window.secappTurnosHelper.updateNextPostInvitations();
+            }
         }
     })();
     </script>
