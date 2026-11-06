@@ -1530,11 +1530,11 @@
             const visScore = clamp(vis && vis.kpi?.total_visitas ? 55 + ((vis.kpi?.promedio_visitas || 0) * 15) : null);
 
             const veh = results.vehiculos;
-            const vehTieneDatos = (veh?.kpi?.total || 0) > 0;
+            const vehTieneDatos = (veh?.kpi?.total_inspecciones || 0) > 0;
             const vehScore = vehTieneDatos ? clamp(veh?.kpi?.pct_aptas ?? null) : null;
 
             const moto = results.motocicletas;
-            const motoTieneDatos = (moto?.kpi?.total || 0) > 0;
+            const motoTieneDatos = (moto?.kpi?.total_inspecciones || 0) > 0;
             const motoScore = motoTieneDatos ? clamp(moto?.kpi?.pct_aptas ?? null) : null;
 
             // Compromisos no consulta nada nuevo: son los acuerdos de las actas de
