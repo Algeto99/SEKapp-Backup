@@ -5441,25 +5441,42 @@ def gestionar_asignacion(asignacion_id):
                 (get_jwt_identity(), nota, nota, nota, asignacion_id, _ASIG_ESTADOS_CERRADOS)
             )
             row = cur.fetchone()
+            cambio_incidente = None
             if row and row.get('form_type') == 'reporte_incidente' and row.get('record_id') is not None:
+                # Gestionar la asignación resuelve también el incidente. Si quedara en
+                # 'Asignado' (lo pone crear_asignacion), el Morning Briefing y los KPI lo
+                # seguirían contando como abierto: sus filtros sólo excluyen
+                # cerrado/resuelto. tiempo_resolucion_min se conserva si ya estaba.
+                # SAVEPOINT en vez de except/pass: un fallo aquí abortaría la transacción
+                # y el commit descartaría en silencio el cierre de la asignación.
+                from dashboard_bp import _Savepoint
                 try:
-                    cur.execute("""
-                        UPDATE reportes_incidentes
-                           SET tiempo_resolucion_min = GREATEST(
-                               1,
-                               ROUND(EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora::timestamptz, creado_en))) / 60.0)::int
-                           )
-                         WHERE id_reporte_incidente = %s
-                           AND (tiempo_resolucion_min IS NULL OR tiempo_resolucion_min <= 0)
-                    """, (int(row['record_id']),))
-                except Exception:
-                    pass
+                    with _Savepoint(cur, 'asig_inc_resuelto'):
+                        cur.execute("""
+                            UPDATE reportes_incidentes AS r
+                               SET estado = 'Resuelto',
+                                   tiempo_resolucion_min = CASE
+                                       WHEN r.tiempo_resolucion_min IS NULL OR r.tiempo_resolucion_min <= 0
+                                       THEN GREATEST(1, ROUND(EXTRACT(EPOCH FROM (NOW() - COALESCE(r.fecha_hora::timestamptz, r.creado_en))) / 60.0)::int)
+                                       ELSE r.tiempo_resolucion_min
+                                   END
+                              FROM (SELECT id_reporte_incidente, estado AS estado_anterior
+                                      FROM reportes_incidentes WHERE id_reporte_incidente = %s FOR UPDATE) AS antes
+                             WHERE r.id_reporte_incidente = antes.id_reporte_incidente
+                            RETURNING antes.estado_anterior
+                        """, (int(row['record_id']),))
+                        antes = cur.fetchone()
+                        if antes is not None:
+                            cambio_incidente = {'estado_anterior': antes['estado_anterior'], 'estado_nuevo': 'Resuelto'}
+                except Exception as e:
+                    app_logger.warning("gestionar_asignacion: no se pudo resolver el incidente %s: %s",
+                                       row['record_id'], e)
         if not row:
             # No existe, o ya estaba cerrada: en ambos casos no queda pendiente.
             return jsonify({"error": "Asignación no encontrada o ya gestionada"}), 404
         conn.commit()
         anotar(formulario=row['form_type'], registro_id=row['record_id'],
-               detalle={'asignacion_id': asignacion_id})
+               detalle={'asignacion_id': asignacion_id, **(cambio_incidente or {})})
         return jsonify({"success": True, **dict(row)})
     except Exception as e:
         conn.rollback()
