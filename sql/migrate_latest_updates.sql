@@ -166,6 +166,8 @@ ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS editado_por VARCHAR(2
 ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
 ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+-- Evidencia del modal Gestión de Estado del Incidente (la app también la crea sola al primer uso)
+ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS evidencia_seguimiento_url TEXT;
 
 ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;

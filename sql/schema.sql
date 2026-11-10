@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS reportes_incidentes (
     fecha_cumplimiento_plan DATE,
     estado_seguimiento_plan VARCHAR(255),
     accion_seguimiento TEXT,
+    evidencia_seguimiento_url TEXT,
     reportado_autoridades VARCHAR(255),
     numero_reporte_autoridades TEXT,
     submitter_timezone TEXT,

@@ -4850,6 +4850,32 @@ def api_incidentes_detalles():
         if conn: conn.close()
 
 
+_INC_EVIDENCIA_COL_LISTA = False
+
+
+def _ensure_incidentes_evidencia_col(cur):
+    """Crea `evidencia_seguimiento_url` en reportes_incidentes si falta, una vez
+    por proceso.
+
+    El modal de Gestión de Estado escribe esa columna desde mayo de 2026, pero
+    nunca entró en schema.sql ni en una migración: el PUT con archivo respondía
+    500 (UndefinedColumn) y sin archivo funcionaba. Mismo patrón perezoso que la
+    geocerca y kpi_thresholds. Va dentro de un SAVEPOINT para que, si el ALTER
+    falla (p. ej. permisos), el endpoint siga sirviendo las actualizaciones sin
+    evidencia en vez de caer con "current transaction is aborted".
+    """
+    global _INC_EVIDENCIA_COL_LISTA
+    if _INC_EVIDENCIA_COL_LISTA:
+        return
+    try:
+        with _Savepoint(cur, 'inc_evidencia_col'):
+            cur.execute("ALTER TABLE reportes_incidentes "
+                        "ADD COLUMN IF NOT EXISTS evidencia_seguimiento_url TEXT")
+        _INC_EVIDENCIA_COL_LISTA = True
+    except Exception as e:
+        app_logger.warning("No se pudo asegurar evidencia_seguimiento_url en reportes_incidentes: %s", e)
+
+
 @dashboard_bp.route('/api/incidentes/<int:id_reporte>/estado', methods=['PUT'])
 @jwt_required()
 def api_incidentes_update_estado(id_reporte):
@@ -4876,6 +4902,7 @@ def api_incidentes_update_estado(id_reporte):
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        _ensure_incidentes_evidencia_col(cur)
 
         if es_coordinador():
             rechazo = fuera_de_ambito('reporte_incidente', id_reporte, conn=conn)

@@ -1278,13 +1278,25 @@
                 </div>
                 <div style="margin-top:.75rem;">
                     <span style="color:#94a3b8;font-size:.75rem;font-weight:700;text-transform:uppercase;">Evidencia (foto / archivo):</span>
-                    <input type="file" id="incEvidenciaInput" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                        style="display:block;margin-top:.35rem;color:#cbd5e1;font-size:.83rem;width:100%;">
+                    <div id="incEvidenciaWrap" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.35rem;">
+                        <input type="file" id="incEvidenciaInput" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                            style="flex:1;min-width:200px;color:#cbd5e1;font-size:.83rem;">
+                        <button type="button" id="incEvidenciaQuitar" class="btn-action" title="Descartar el archivo elegido"
+                            style="display:none;padding:.4rem .8rem;background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.3);">✕ Quitar archivo</button>
+                    </div>
                     ${r.evidencia_url ? `<a href="${r.evidencia_url}" target="_blank" style="display:inline-block;margin-top:.3rem;font-size:.78rem;color:#60a5fa;">📎 Ver evidencia adjunta</a>` : ''}
                 </div>
                 <div id="incModalMsg" style="margin-top:.5rem;font-size:.83rem;min-height:1.2em;"></div>
             `;
             body.insertBefore(editorDiv, body.firstChild);
+
+            // "Quitar archivo": el input nativo no ofrece cómo descartar lo elegido. El
+            // botón aparece sólo con archivo seleccionado y se oculta al vaciarlo.
+            const evidenciaInput  = document.getElementById('incEvidenciaInput');
+            const evidenciaQuitar = document.getElementById('incEvidenciaQuitar');
+            const limpiarEvidencia = () => { evidenciaInput.value = ''; evidenciaQuitar.style.display = 'none'; };
+            evidenciaInput.onchange  = () => { evidenciaQuitar.style.display = evidenciaInput.files.length ? 'inline-flex' : 'none'; };
+            evidenciaQuitar.onclick  = limpiarEvidencia;
 
             document.getElementById('incSaveBtn').onclick = async () => {
                 const nuevoEstado = document.getElementById('incEstadoSelect').value;
@@ -1307,6 +1319,7 @@
                     if (!resp.ok) throw new Error(result.error || 'Error al guardar');
                     msgEl.style.color = '#86efac';
                     msgEl.textContent = 'Estado actualizado correctamente.';
+                    limpiarEvidencia(); // ya se envió: que un segundo clic no lo vuelva a adjuntar
                     r.estado = nuevoEstado;
                     r.accion_tomada = accionTomada;
                     if (result.evidencia_url) {
@@ -1317,7 +1330,7 @@
                             link.href = result.evidencia_url; link.target = '_blank';
                             link.style.cssText = 'display:inline-block;margin-top:.3rem;font-size:.78rem;color:#60a5fa;';
                             link.textContent = '📎 Ver evidencia adjunta';
-                            document.getElementById('incEvidenciaInput').insertAdjacentElement('afterend', link);
+                            document.getElementById('incEvidenciaWrap').insertAdjacentElement('afterend', link);
                         }
                     }
                     // Reload matrices
