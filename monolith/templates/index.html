@@ -1118,7 +1118,8 @@
             };
             const editLink = document.getElementById('modal-report-edit-link');
             if (EDIT_ROUTES[formType]) {
-                editLink.href = EDIT_ROUTES[formType];
+                // return_to=viewer: tras guardar, se vuelve aquí con los filtros.
+                editLink.href = `${EDIT_ROUTES[formType]}?return_to=viewer`;
                 editLink.classList.remove('hidden');
             } else {
                 editLink.classList.add('hidden');
@@ -2511,8 +2512,13 @@
             if (!activeSavedFilterId) return;
             const saved = savedFilters.find(f => f.id === activeSavedFilterId);
             if (!saved) return;
-            const f = saved.filters;
+            await restoreFilterValues(saved.filters);
+            showFlashMessage(`Filtro "${saved.name}" cargado.`, 'success');
+        }
 
+        // Pone en los campos un juego de filtros (el de captureFiltersForSave)
+        // y consulta. Lo usan los filtros guardados y el regreso tras editar.
+        async function restoreFilterValues(f) {
             // Set simple fields immediately
             document.getElementById('formTypeSelect').value   = f.form_type    || '';
             document.getElementById('reportIdSearch').value   = f.report_id    || '';
@@ -2563,7 +2569,35 @@
             }
 
             applyFilters();
-            showFlashMessage(`Filtro "${saved.name}" cargado.`, 'success');
+        }
+
+        // Regreso tras editar un registro: el clic en "Editar registro" dejó
+        // los filtros en sessionStorage; aquí se consumen y se reaplican.
+        const RETURN_FLAG_KEY = 'sekapp_return_to_viewer';
+        const RETURN_FILTERS_KEY = 'sekapp_viewer_filters';
+
+        function rememberFiltersForReturn() {
+            try {
+                sessionStorage.setItem(RETURN_FILTERS_KEY, JSON.stringify(captureFiltersForSave()));
+                sessionStorage.setItem(RETURN_FLAG_KEY, 'true');
+            } catch (e) {
+                // Sin sessionStorage la edición sigue su flujo normal.
+                console.warn('No se pudieron guardar los filtros para el regreso:', e);
+            }
+        }
+
+        async function restoreFiltersAfterEdit() {
+            let filters = null;
+            try {
+                if (sessionStorage.getItem(RETURN_FLAG_KEY) !== 'true') return;
+                sessionStorage.removeItem(RETURN_FLAG_KEY);
+                filters = JSON.parse(sessionStorage.getItem(RETURN_FILTERS_KEY) || 'null');
+                sessionStorage.removeItem(RETURN_FILTERS_KEY);
+            } catch (e) {
+                return;
+            }
+            if (!filters || typeof filters !== 'object') return;
+            await restoreFilterValues(filters);
         }
 
         function captureFiltersForSave() {
@@ -2704,6 +2738,9 @@
             // Load initial data
             loadProperties();
             fetchSavedFilters();
+            restoreFiltersAfterEdit();
+            document.getElementById('modal-report-edit-link')
+                .addEventListener('click', rememberFiltersForReturn);
 
             // Saved filter event listeners
             document.getElementById('savedFiltersSelect').addEventListener('change', updateSavedFilterButtons);

@@ -119,6 +119,13 @@
             <p class="text-lg font-medium">{{ message }}</p>
         </div>
         
+        <!-- Solo al editar un registro abierto desde Reportes (lo activa el
+             script del final); el alta de formularios nunca lo muestra. -->
+        <div id="volverReportes" class="mb-6" style="display:none;">
+            <p class="mb-3 text-sm opacity-80">Volviendo a reportes...</p>
+            <a href="/viewer/" class="success-button block text-center">Volver a Reportes</a>
+        </div>
+
         <div class="space-y-3">
             <a href="{{ select_form_url }}" class="success-button block text-center">
                 Crear Nuevo Reporte
@@ -133,5 +140,25 @@
          borrador local que acaba de salir se borra (form-draft.js). -->
     <script src="{{ url_for('static', filename='js/form-draft.js') }}" data-usuario="{{ (name or '') | e }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script>
+        // Regreso a Reportes tras editar: la bandera la deja el visor al pulsar
+        // "Editar registro" y la consume el propio visor al cargar. Se exige
+        // además venir de una pantalla de edición (/editar), para que un alta
+        // hecha después en la misma pestaña se quede aquí como siempre.
+        (function () {
+            var volver = false;
+            try {
+                volver = sessionStorage.getItem('sekapp_return_to_viewer') === 'true';
+            } catch (e) { return; }
+            if (!volver) return;
+            var origen = '';
+            try {
+                origen = document.referrer ? new URL(document.referrer).pathname : '';
+            } catch (e) { origen = ''; }
+            if (origen && !/\/editar\/?$/.test(origen)) return;
+            document.getElementById('volverReportes').style.display = '';
+            setTimeout(function () { window.location.href = '/viewer/'; }, 1000);
+        })();
+    </script>
 </body>
 </html>
