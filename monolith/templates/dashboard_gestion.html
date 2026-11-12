@@ -189,6 +189,24 @@
             height: 100%; width: 0; border-radius: 999px;
             background: var(--estatus-color, #94a3b8); transition: width .3s ease;
         }
+        /* Diagnóstico directo: por qué esta nota y cómo subirla, sin deducirlo
+           del desglose. Toma el color del estado del cliente. */
+        .estatus-diagnostico {
+            grid-column: 1 / -1; display: grid; gap: 0.4rem;
+            margin-top: 0.9rem; padding: 0.75rem 0.9rem;
+            background: rgba(148,163,184,0.08);
+            border: 1px solid rgba(148,163,184,0.3);
+            border: 1px solid color-mix(in srgb, var(--estatus-color, #94a3b8) 55%, transparent);
+            border-left: 3px solid var(--estatus-color, #94a3b8);
+            border-radius: 10px;
+            font-size: 0.86rem; line-height: 1.5; color: #e2e8f0;
+        }
+        .estatus-diagnostico strong { font-weight: 700; }
+        .estatus-diagnostico .diag-pts { font-weight: 700; color: #f87171; white-space: nowrap; }
+        .estatus-diagnostico .diag-meta { font-size: 0.76rem; color: #94a3b8; }
+        body.light-mode .estatus-diagnostico { background: #f8fafc; color: #1e293b; }
+        body.light-mode .estatus-diagnostico .diag-pts { color: #dc2626; }
+        body.light-mode .estatus-diagnostico .diag-meta { color: #64748b; }
         .estatus-ejes {
             grid-column: 1 / -1;
             display: grid; grid-template-columns: repeat(4, 1fr);
@@ -767,6 +785,7 @@
                     <div class="estatus-variacion" id="estatusVariacion"></div>
                 </div>
                 <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
+                <div class="estatus-diagnostico" id="estatusDiagnostico" style="display:none;"></div>
                 <div class="estatus-desglose-titulo">Desglose</div>
                 <div class="estatus-ejes" id="estatusEjes"></div>
                 <div class="estatus-baja-titulo" id="estatusBajaTitulo" style="display:none;">
@@ -1136,6 +1155,7 @@
         const estatusInstTitulo = document.getElementById('estatusInstTitulo');
         const estatusBaja = document.getElementById('estatusBaja');
         const estatusBajaTitulo = document.getElementById('estatusBajaTitulo');
+        const estatusDiagnostico = document.getElementById('estatusDiagnostico');
 
         let trendChart = null;
         let rankingChart = null;
@@ -1850,6 +1870,75 @@
                 </a>`).join('');
         }
 
+        // Diagnóstico directo: el hallazgo que más puntos resta y a cuánto
+        // subiría la nota sin él. `impacto` ya viene en puntos de la nota
+        // final, así que la nota potencial es una suma, no una estimación.
+        function renderDiagnostico(estatus) {
+            const hallazgos = estatus.hallazgos || [];
+            const score = estatus.score;
+            const h = hallazgos[0];
+            estatusDiagnostico.textContent = '';
+            if (score === null || score === undefined || score >= 100
+                    || !h || !(Number(h.impacto) > 0)) {
+                estatusDiagnostico.style.display = 'none';
+                return;
+            }
+
+            const sedes = estatus.instalaciones || [];
+            // Aportan a la nota las sedes con nota propia y puestos que ponderen.
+            const aportan = sedes.filter(f => f.nota !== null && f.nota !== undefined && f.peso > 0);
+            const sede = h.instalacion || (sedes.length === 1 ? sedes[0].nombre : '');
+            const enSede = sede ? ` en ${sede}` : '';
+            const impacto = Number(h.impacto);
+            const nota = Math.round(score);
+            const potencial = Math.min(100, score + impacto);
+            // Si el redondeo deja la misma nota, se muestra con un decimal.
+            const potencialTxt = Math.round(potencial) > nota
+                ? String(Math.round(potencial)) : potencial.toFixed(1);
+
+            const causa = h.etiqueta === 'Incidentes'
+                ? h.texto
+                : `${h.etiqueta} al ${h.texto}`;
+            const acciones = {
+                'Compromisos':   `Cumplir en plazo los compromisos${enSede} eleva la nota`,
+                'Visitas':       `Completar las visitas programadas${enSede} eleva la nota`,
+                'Supervisiones': `Completar las supervisiones programadas${enSede} eleva la nota`,
+                'Cumplimiento':  `Corregir los incumplimientos del checklist${enSede} eleva la nota`,
+                'Satisfacción':  `Llevar la satisfacción${enSede} al máximo eleva la nota`,
+                'Incidentes':    `Sin esos incidentes${enSede}, la nota sube`,
+            };
+            const accion = acciones[h.etiqueta]
+                || `Corregir ${String(h.etiqueta).toLowerCase()}${enSede} eleva la nota`;
+
+            const linea = (titulo, partes) => {
+                const div = document.createElement('div');
+                const b = document.createElement('strong');
+                b.textContent = `${titulo}: `;
+                div.appendChild(b);
+                partes.forEach(p => {
+                    if (typeof p === 'string') { div.appendChild(document.createTextNode(p)); return; }
+                    const s = document.createElement('span');
+                    s.className = p.cls;
+                    s.textContent = p.txt;
+                    div.appendChild(s);
+                });
+                return div;
+            };
+
+            const porQue = [`${causa}${enSede} · `, { cls: 'diag-pts', txt: `−${impacto.toFixed(1)} pts` }];
+            if (h.contexto) porQue.push({ cls: 'diag-meta', txt: ` (${h.contexto})` });
+            estatusDiagnostico.appendChild(linea('🔻 Por qué esta nota', porQue));
+            estatusDiagnostico.appendChild(linea('💡 Cómo subirla', [`${accion} a ~${potencialTxt}/100.`]));
+
+            if (sedes.length > 1 && aportan.length === 1) {
+                const nota1 = document.createElement('div');
+                nota1.className = 'diag-meta';
+                nota1.textContent = `(Calculado solo con ${aportan[0].nombre}, única sede calificada de ${sedes.length})`;
+                estatusDiagnostico.appendChild(nota1);
+            }
+            estatusDiagnostico.style.display = '';
+        }
+
         function renderVariacion(estatus) {
             const c = estatus.comparacion || {};
             // Sin período anterior comparable no se inventa una variación: se
@@ -1981,6 +2070,7 @@
             }
 
             renderVariacion(estatus);
+            renderDiagnostico(estatus);
             renderHallazgos(estatus);
             renderInstalaciones(estatus);
 
